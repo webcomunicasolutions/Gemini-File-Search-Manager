@@ -56,6 +56,34 @@
 
 ---
 
+## 📸 Screenshots
+
+### Main Interface
+![Main Interface](screenshots/01-main-interface.jpg)
+*Modern bilingual interface with upload, chat, file stores, and settings tabs*
+
+### AI Metadata Suggestions
+![AI Metadata](screenshots/05-metadata-ai-suggestions.jpg)
+*Automatic metadata extraction powered by Gemini AI*
+
+### Chat with Documents
+![Chat Interface](screenshots/06-chat-interface.jpg)
+*Interactive RAG chat with real-time responses*
+
+### File Stores Management
+![File Stores](screenshots/07-file-stores-management.jpg)
+*Manage multiple file search stores with document tracking*
+
+### Settings Configuration
+![Settings](screenshots/08-settings-page.jpg)
+*Configure API keys and model preferences*
+
+### API Documentation & HTTP Generator
+![API Docs](screenshots/09-api-docs-http-generator.jpg)
+*Built-in HTTP request generator with 6 output formats*
+
+---
+
 ## 🚀 Quick Start
 
 ### Prerequisites
