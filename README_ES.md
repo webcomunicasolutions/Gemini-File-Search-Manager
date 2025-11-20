@@ -20,7 +20,7 @@
 - **Soporte Bilingüe**: Sistema completo de traducción Español/Inglés
 - **3 Pestañas Principales**: Chat, Gestión de File Stores, Documentación y Generador HTTP
 - **Chat en Tiempo Real**: Consultas RAG interactivas con citaciones de documentos
-- **Carga de Archivos**: Soporte para más de 100 tipos de archivos (PDF, DOCX, TXT, Markdown, etc.)
+- **Carga de Archivos**: Soporte para múltiples formatos (PDF, DOCX, XLSX, PPTX, TXT, MD, HTML, CSV, y más)
 - **Metadatos con IA**: Extracción automática de metadatos usando modelos Gemini
 
 ### 📦 Gestión de File Stores
@@ -118,7 +118,7 @@ Ve a la pestaña **Configuración** e introduce tu API Key de Gemini. La aplicac
 
 ### 3. Subir Documentos
 - Haz clic en **Examinar Archivos** o arrastra y suelta
-- Formatos soportados: PDF, DOCX, TXT, MD, CSV, y más de 100 más
+- Formatos soportados: PDF, DOCX, XLSX, PPTX, TXT, MD, HTML, CSV, JSON, XML y muchos archivos de código (Python, JavaScript, Java, C++, Go, Rust, etc.)
 - Añade metadatos personalizados (opcional)
 - Selecciona modelo de IA para generación de metadatos (opcional)
 

@@ -20,7 +20,7 @@
 - **Bilingual Support**: Complete Spanish/English translation system
 - **3 Main Tabs**: Chat, File Stores Management, Documentation & HTTP Generator
 - **Real-time Chat**: Interactive RAG queries with document citations
-- **File Upload**: Support for 100+ file types (PDF, DOCX, TXT, Markdown, etc.)
+- **File Upload**: Support for multiple file formats (PDF, DOCX, TXT, MD, HTML, CSV, and more)
 - **AI-Powered Metadata**: Automatic metadata extraction using Gemini models
 
 ### 📦 File Store Management
@@ -146,7 +146,7 @@ Go to **Settings** tab and enter your Gemini API Key. The app will remember it f
 
 ### 3. Upload Documents
 - Click **Browse Files** or drag & drop
-- Supported formats: PDF, DOCX, TXT, MD, CSV, and 100+ more
+- Supported formats: PDF, DOCX, XLSX, PPTX, TXT, MD, HTML, CSV, JSON, XML, and many code files (Python, JavaScript, Java, C++, Go, Rust, etc.)
 - Add custom metadata (optional)
 - Select AI model for metadata generation (optional)
 

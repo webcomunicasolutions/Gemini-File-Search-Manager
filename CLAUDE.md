@@ -71,11 +71,25 @@ Access citation information through `response.candidates[0].grounding_metadata` 
 
 ## File Support
 
-Supports 100+ file types including:
-- Documents: PDF, DOCX, TXT, MD, RTF
-- Spreadsheets: XLSX, CSV, TSV
-- Code: Python, JavaScript, Java, C++, Go, Rust, and many more
-- Others: JSON, XML, YAML, HTML
+File Search supports a wide range of file formats across two main categories:
+
+### Application File Types (43 MIME types)
+- Documents: PDF, DOCX, DOC, ODT, RTF
+- Spreadsheets: XLSX, XLS, ODS
+- Presentations: PPTX, PPT, ODP
+- Archives: ZIP
+- Other: JSON, XML, SQL, LaTeX, Jupyter notebooks (.ipynb)
+
+### Text File Types (170+ MIME types)
+- Markup: HTML, XML, Markdown, reStructuredText
+- Styles: CSS, SCSS, SASS
+- Programming: Python, JavaScript, TypeScript, Java, C, C++, C#, Go, Rust, PHP, Ruby, Swift, Kotlin, Scala, Perl, Dart, R, Shell scripts
+- Data: CSV, TSV, YAML, plain text
+- Other: vCard, iCalendar, SGML, Turtle, N3
+
+**Limitations:**
+- Maximum file size: 100 MB per document
+- Recommended: Keep each File Search store under 20 GB for optimal latency
 
 ## Rate Limits and Pricing
 

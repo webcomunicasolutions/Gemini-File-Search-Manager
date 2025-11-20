@@ -199,32 +199,43 @@ Return metadata to client
 
 ### Supported File Types
 
-100+ file types supported including:
+File Search supports a wide range of file formats (200+ MIME types):
 
 **Documents**:
 - PDF (`.pdf`)
 - Microsoft Word (`.doc`, `.docx`)
+- OpenDocument (`.odt`)
 - Text files (`.txt`)
 - Markdown (`.md`)
 - Rich Text Format (`.rtf`)
+- HTML (`.html`)
 
 **Spreadsheets**:
 - Excel (`.xlsx`, `.xls`)
+- OpenDocument Spreadsheet (`.ods`)
 - CSV (`.csv`)
 - TSV (`.tsv`)
 
+**Presentations**:
+- PowerPoint (`.pptx`, `.ppt`)
+- OpenDocument Presentation (`.odp`)
+
 **Code Files**:
-- Python (`.py`)
-- JavaScript (`.js`)
-- Java (`.java`)
-- C/C++ (`.c`, `.cpp`)
-- Go (`.go`)
-- Rust (`.rs`)
-- And many more
+- Python, JavaScript, TypeScript, Java, C, C++, C#
+- Go, Rust, PHP, Ruby, Swift, Kotlin, Scala
+- Perl, Dart, R, Shell scripts
+- And many more programming languages
 
 **Data Formats**:
 - JSON (`.json`)
 - XML (`.xml`)
+- YAML (`.yaml`, `.yml`)
+- SQL (`.sql`)
+
+**Other**:
+- LaTeX (`.tex`)
+- Jupyter Notebooks (`.ipynb`)
+- ZIP archives (`.zip`)
 - YAML (`.yaml`)
 - HTML (`.html`)
 
