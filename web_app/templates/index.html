@@ -1271,7 +1271,7 @@
                 'tabs.chat': '💬 Chat',
                 'tabs.stores': '📦 File Stores',
                 'tabs.settings': '⚙️ Settings',
-                'tabs.docs': '📚 Docs & Help',
+                'tabs.docs': '📚 Docs y Ayuda',
 
                 // Upload - Stores
                 'upload.stores.title': '📦 Stores',
@@ -3106,16 +3106,6 @@
                 const response = await fetch('/api-info');
                 const data = await response.json();
                 apiInfoCache = data;
-
-                if (!data.store_exists) {
-                    container.innerHTML = `
-                        <div class="no-store-message">
-                            <h3>📦 No File Search Store Yet</h3>
-                            <p>Upload a document in the Upload tab first.</p>
-                        </div>
-                    `;
-                    return;
-                }
 
                 container.innerHTML = await generateApiDocumentation(data);
                 initializeHttpGenerator();
