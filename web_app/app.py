@@ -32,9 +32,9 @@ app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Initialize Gemini client - API key del usuario
-api_key = 'AIzaSyASbAyZ2GXmOMTdK7d9x_W3gZh9zJebD4g'
+api_key = os.getenv('GEMINI_API_KEY')
 if not api_key:
-    raise ValueError("GEMINI_API_KEY not found")
+    raise ValueError("GEMINI_API_KEY not found in environment variables. Please set GEMINI_API_KEY in your .env file")
 
 client = genai.Client(api_key=api_key)
 
