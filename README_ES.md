@@ -119,6 +119,7 @@ Ve a la pestaña **Configuración** e introduce tu API Key de Gemini. La aplicac
 ### 3. Subir Documentos
 - Haz clic en **Examinar Archivos** o arrastra y suelta
 - Formatos soportados: PDF, DOCX, XLSX, PPTX, TXT, MD, HTML, CSV, JSON, XML y muchos archivos de código (Python, JavaScript, Java, C++, Go, Rust, etc.)
+- **Ver lista completa**: [SUPPORTED_FORMATS.md](SUPPORTED_FORMATS.md) - 200 tipos MIME soportados
 - Añade metadatos personalizados (opcional)
 - Selecciona modelo de IA para generación de metadatos (opcional)
 

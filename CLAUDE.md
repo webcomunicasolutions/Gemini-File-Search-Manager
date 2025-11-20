@@ -71,25 +71,38 @@ Access citation information through `response.candidates[0].grounding_metadata` 
 
 ## File Support
 
-File Search supports a wide range of file formats across two main categories:
+File Search supports specific file formats through MIME types. See [SUPPORTED_FORMATS.md](SUPPORTED_FORMATS.md) for the complete list.
 
-### Application File Types (43 MIME types)
-- Documents: PDF, DOCX, DOC, ODT, RTF
-- Spreadsheets: XLSX, XLS, ODS
-- Presentations: PPTX, PPT, ODP
-- Archives: ZIP
-- Other: JSON, XML, SQL, LaTeX, Jupyter notebooks (.ipynb)
+### Summary
 
-### Text File Types (170+ MIME types)
-- Markup: HTML, XML, Markdown, reStructuredText
-- Styles: CSS, SCSS, SASS
-- Programming: Python, JavaScript, TypeScript, Java, C, C++, C#, Go, Rust, PHP, Ruby, Swift, Kotlin, Scala, Perl, Dart, R, Shell scripts
-- Data: CSV, TSV, YAML, plain text
-- Other: vCard, iCalendar, SGML, Turtle, N3
+**Application File Types (30 MIME types):**
+- Documents: PDF, Word (.doc, .docx), Excel, PowerPoint, ODT
+- Code/Data: JSON, XML, SQL, Dart, TypeScript, Java, PHP
+- Other: LaTeX, Jupyter notebooks, Shell scripts, ZIP archives
 
-**Limitations:**
-- Maximum file size: 100 MB per document
-- Recommended: Keep each File Search store under 20 GB for optimal latency
+**Text File Types (170 MIME types):**
+- Web: HTML, CSS, JavaScript, JSX, TypeScript, TSX
+- Programming: Python, Java, C/C++, C#, Go, Rust, Swift, Kotlin, Scala, Ruby, Perl, R, Haskell, Erlang, Lisp, Lua
+- Data: CSV, TSV, plain text, YAML
+- Markup: Markdown, XML, RST, SGML, Turtle, N3
+- Other: RTF, vCard, calendar formats
+
+### Common File Extensions
+
+- **Documents**: `.pdf`, `.doc`, `.docx`, `.odt`, `.rtf`
+- **Spreadsheets**: `.xls`, `.xlsx`, `.ods`, `.csv`, `.tsv`
+- **Presentations**: `.ppt`, `.pptx`, `.odp`
+- **Code**: `.py`, `.js`, `.ts`, `.java`, `.c`, `.cpp`, `.cs`, `.go`, `.rs`, `.php`, `.rb`, `.swift`, `.kt`, `.scala`, `.pl`, `.r`, `.hs`, `.erl`, `.lisp`, `.lua`, `.sh`
+- **Markup**: `.md`, `.html`, `.xml`, `.rst`, `.tex`
+- **Data**: `.json`, `.yaml`, `.yml`, `.sql`, `.csv`, `.tsv`, `.txt`
+- **Notebooks**: `.ipynb`
+- **Archives**: `.zip`
+
+### Limitations
+
+- **Maximum file size**: 100 MB per document
+- **Recommended**: Keep each File Search store under 20 GB for optimal latency
+- **Total storage**: Varies by tier (Free: 1GB, Tier 1: 10GB, Tier 2: 100GB, Tier 3: 1TB)
 
 ## Rate Limits and Pricing
 

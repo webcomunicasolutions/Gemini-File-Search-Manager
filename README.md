@@ -147,6 +147,7 @@ Go to **Settings** tab and enter your Gemini API Key. The app will remember it f
 ### 3. Upload Documents
 - Click **Browse Files** or drag & drop
 - Supported formats: PDF, DOCX, XLSX, PPTX, TXT, MD, HTML, CSV, JSON, XML, and many code files (Python, JavaScript, Java, C++, Go, Rust, etc.)
+- **See complete list**: [SUPPORTED_FORMATS.md](SUPPORTED_FORMATS.md) - 200 MIME types supported
 - Add custom metadata (optional)
 - Select AI model for metadata generation (optional)
 
