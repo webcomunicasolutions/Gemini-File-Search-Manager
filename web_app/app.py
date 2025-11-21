@@ -8,6 +8,9 @@ import json
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 import logging
+import mimetypes
+from docx import Document as DocxDocument
+from openpyxl import load_workbook
 
 # Load environment variables
 load_dotenv()
@@ -21,9 +24,117 @@ logger = logging.getLogger(__name__)
 
 # Configuration constants - Constantes de configuración
 UPLOAD_FOLDER = 'uploads'
-ALLOWED_EXTENSIONS = {'txt', 'pdf', 'doc', 'docx', 'json', 'md', 'py', 'js', 'html', 'css', 'xml', 'csv'}
+# Expanded allowed extensions to match all File Search supported formats
+ALLOWED_EXTENSIONS = {
+    # Documents
+    'txt', 'pdf', 'doc', 'docx', 'odt', 'rtf', 'md', 'markdown',
+    # Spreadsheets
+    'csv', 'tsv', 'xlsx', 'xls', 'xlsm', 'xlsb', 'ods',
+    # Presentations
+    'pptx', 'ppt', 'odp',
+    # Data formats
+    'json', 'xml', 'yaml', 'yml', 'sql',
+    # Code files
+    'py', 'js', 'jsx', 'ts', 'tsx', 'java', 'c', 'cpp', 'h', 'hpp',
+    'cs', 'go', 'rs', 'php', 'rb', 'swift', 'kt', 'scala', 'pl',
+    'r', 'hs', 'erl', 'lisp', 'lua', 'sh', 'bash', 'zsh', 'dart',
+    # Web
+    'html', 'htm', 'css', 'scss', 'sass',
+    # Scientific
+    'ipynb', 'bib', 'bibtex', 'tex',
+    # Archives
+    'zip'
+}
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
 MAX_HISTORY = 7  # Conversation history limit - Límite de historial de conversación
+
+# Complete MIME type mapping for Gemini File Search API
+# Based on official documentation: https://ai.google.dev/gemini-api/docs/file-search
+MIME_TYPE_MAPPING = {
+    # Documents
+    'pdf': 'application/pdf',
+    'doc': 'application/msword',
+    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'odt': 'application/vnd.oasis.opendocument.text',
+    'rtf': 'text/rtf',
+    'txt': 'text/plain',
+    'md': 'text/markdown',
+    'markdown': 'text/markdown',
+
+    # Spreadsheets (CRITICAL - These were failing without explicit MIME types)
+    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'xls': 'application/vnd.ms-excel',
+    'xlsm': 'application/vnd.ms-excel.sheet.macroEnabled.12',
+    'xlsb': 'application/vnd.ms-excel.sheet.binary.macroEnabled.12',
+    'csv': 'text/csv',
+    'tsv': 'text/tab-separated-values',
+    'ods': 'application/vnd.oasis.opendocument.spreadsheet',
+
+    # Presentations
+    'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'ppt': 'application/vnd.ms-powerpoint',
+    'odp': 'application/vnd.oasis.opendocument.presentation',
+
+    # Data formats
+    'json': 'application/json',
+    'xml': 'application/xml',
+    'yaml': 'text/yaml',
+    'yml': 'text/yaml',
+    'sql': 'application/sql',
+
+    # Programming Languages
+    'py': 'text/x-python',
+    'js': 'text/javascript',
+    'jsx': 'text/jsx',
+    'ts': 'application/typescript',
+    'tsx': 'text/tsx',
+    'java': 'text/x-java',
+    'c': 'text/x-c',
+    'cpp': 'text/x-c++src',
+    'cc': 'text/x-c++src',
+    'cxx': 'text/x-c++src',
+    'h': 'text/x-chdr',
+    'hpp': 'text/x-c++hdr',
+    'cs': 'text/x-csharp',
+    'go': 'text/x-go',
+    'rs': 'text/x-rust',
+    'php': 'application/x-php',
+    'rb': 'text/x-ruby-script',
+    'swift': 'text/x-swift',
+    'kt': 'text/x-kotlin',
+    'scala': 'text/x-scala',
+    'pl': 'text/x-perl',
+    'r': 'text/x-rsrc',
+    'hs': 'text/x-haskell',
+    'erl': 'text/x-erlang',
+    'lisp': 'text/x-lisp',
+    'lua': 'text/x-lua',
+    'sh': 'application/x-sh',
+    'bash': 'application/x-sh',
+    'zsh': 'application/x-zsh',
+    'dart': 'application/vnd.dart',
+
+    # Web Technologies
+    'html': 'text/html',
+    'htm': 'text/html',
+    'css': 'text/css',
+    'scss': 'text/x-scss',
+    'sass': 'text/x-sass',
+
+    # Scientific & Academic
+    'ipynb': 'application/vnd.jupyter',
+    'bib': 'text/x-bibtex',
+    'bibtex': 'text/x-bibtex',
+    'tex': 'application/x-tex',
+
+    # Archives
+    'zip': 'application/zip',
+
+    # Other
+    'ics': 'text/calendar',
+    'vcard': 'text/vcard',
+    'vcf': 'text/vcard'
+}
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE
@@ -86,6 +197,110 @@ def save_state():
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def get_mime_type(filename):
+    """
+    Detect MIME type from file extension with fallback.
+
+    Args:
+        filename (str): Name of the file
+
+    Returns:
+        str: MIME type string
+    """
+    # Get file extension
+    file_ext = filename.lower().rsplit('.', 1)[-1] if '.' in filename else ''
+
+    # Priority 1: Check manual mapping (most reliable for File Search API)
+    if file_ext in MIME_TYPE_MAPPING:
+        return MIME_TYPE_MAPPING[file_ext]
+
+    # Priority 2: Fallback to mimetypes module
+    mime_type, _ = mimetypes.guess_type(filename)
+    if mime_type:
+        return mime_type
+
+    # Priority 3: Safe default
+    logger.warning(f"Could not determine MIME type for {filename}, using default")
+    return 'application/octet-stream'
+
+def extract_text_from_docx(file_path):
+    """
+    Extract text content from a DOCX file.
+
+    Args:
+        file_path (str): Path to the DOCX file
+
+    Returns:
+        str: Extracted text content
+    """
+    try:
+        doc = DocxDocument(file_path)
+        paragraphs = []
+
+        # Extract all paragraphs
+        for para in doc.paragraphs:
+            if para.text.strip():
+                paragraphs.append(para.text)
+
+        # Extract text from tables
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    if cell.text.strip():
+                        paragraphs.append(cell.text)
+
+        text = '\n'.join(paragraphs)
+        logger.info(f"Extracted {len(text)} characters from DOCX")
+        return text
+
+    except Exception as e:
+        logger.error(f"Error extracting text from DOCX: {str(e)}")
+        return ""
+
+def extract_text_from_xlsx(file_path):
+    """
+    Extract text content from an XLSX file.
+
+    Args:
+        file_path (str): Path to the XLSX file
+
+    Returns:
+        str: Extracted text content
+    """
+    wb = None
+    try:
+        wb = load_workbook(filename=file_path, read_only=True, data_only=True)
+        text_parts = []
+
+        for sheet_name in wb.sheetnames:
+            sheet = wb[sheet_name]
+            text_parts.append(f"=== Sheet: {sheet_name} ===")
+
+            # Read up to 100 rows to avoid overwhelming the model
+            max_rows = min(sheet.max_row, 100) if sheet.max_row else 100
+
+            for row in sheet.iter_rows(min_row=1, max_row=max_rows, values_only=True):
+                # Convert row values to strings, skip empty rows
+                row_text = ' | '.join([str(cell) if cell is not None else '' for cell in row])
+                if row_text.strip():
+                    text_parts.append(row_text)
+
+        text = '\n'.join(text_parts)
+        logger.info(f"Extracted {len(text)} characters from XLSX ({len(wb.sheetnames)} sheets)")
+        return text
+
+    except Exception as e:
+        logger.error(f"Error extracting text from XLSX: {str(e)}")
+        return ""
+    finally:
+        # IMPORTANT: Always close the workbook to release file handle
+        if wb is not None:
+            try:
+                wb.close()
+                logger.info("XLSX workbook closed successfully")
+            except Exception as close_error:
+                logger.warning(f"Error closing workbook: {close_error}")
+
 # ============================================
 # MAIN ROUTES - Rutas principales
 # ============================================
@@ -115,7 +330,6 @@ def upload_file():
         return jsonify({'error': 'File type not supported'}), 400
 
     filepath = None
-    uploaded_api_file = None
 
     try:
         # Save file temporarily
@@ -151,17 +365,14 @@ def upload_file():
             # Use existing default store
             target_store_name = file_search_store.name
 
-        # STEP 1: Upload file using Files API
-        logger.info(f"Uploading {filename} to Files API")
-        uploaded_api_file = client.files.upload(
-            file=filepath,
-            config={'display_name': filename}
-        )
+        # Detect MIME type explicitly (CRITICAL for CSV, XLSX, etc.)
+        mime_type = get_mime_type(filename)
+        logger.info(f"Detected MIME type: {mime_type} for {filename}")
 
-        # STEP 2: Import file into file search store with metadata
-        logger.info(f"Importing {filename} into file search store")
-
-        import_config = {}
+        # Build upload config WITHOUT MIME type (will be auto-detected)
+        upload_config = {
+            'display_name': filename
+        }
 
         # Add custom metadata if provided
         if custom_metadata:
@@ -171,22 +382,61 @@ def upload_file():
                     metadata_list.append({"key": key, "numeric_value": value})
                 else:
                     metadata_list.append({"key": key, "string_value": str(value)})
-            import_config['custom_metadata'] = metadata_list
+            upload_config['custom_metadata'] = metadata_list
 
         # Add chunking config if provided
         if chunking_config and chunking_config.get('enabled'):
-            import_config['chunking_config'] = {
+            upload_config['chunking_config'] = {
                 'white_space_config': {
                     'max_tokens_per_chunk': chunking_config.get('max_tokens_per_chunk', 200),
                     'max_overlap_tokens': chunking_config.get('max_overlap_tokens', 20)
                 }
             }
 
-        operation = client.file_search_stores.import_file(
-            file_search_store_name=target_store_name,
-            file_name=uploaded_api_file.name,
-            config=import_config if import_config else None
-        )
+        # TRY DIRECT UPLOAD FIRST (upload_to_file_search_store)
+        uploaded_api_file = None
+        try:
+            logger.info(f"Attempting direct upload for {filename} (MIME type will be auto-detected)")
+            operation = client.file_search_stores.upload_to_file_search_store(
+                file=filepath,
+                file_search_store_name=target_store_name,
+                config=upload_config
+            )
+        except Exception as upload_error:
+            # FALLBACK: Use Files API + importFile for problematic files (CSV, large files, etc.)
+            logger.warning(f"Direct upload failed: {upload_error}")
+            logger.info(f"Falling back to Files API + importFile method for {filename}")
+
+            try:
+                # Upload to Files API with explicit MIME type
+                uploaded_api_file = client.files.upload(
+                    file=filepath,
+                    config={
+                        'mime_type': mime_type,  # Files API DOES accept mime_type
+                        'display_name': filename
+                    }
+                )
+                logger.info(f"File uploaded to Files API: {uploaded_api_file.name}")
+
+                # Import to File Search Store (importFile has different config schema)
+                import_config_fallback = {}
+
+                # importFile accepts custom_metadata and chunking_config, but NOT display_name
+                if upload_config.get('custom_metadata'):
+                    import_config_fallback['custom_metadata'] = upload_config['custom_metadata']
+                if upload_config.get('chunking_config'):
+                    import_config_fallback['chunking_config'] = upload_config['chunking_config']
+
+                operation = client.file_search_stores.import_file(
+                    file_search_store_name=target_store_name,
+                    file_name=uploaded_api_file.name,
+                    config=import_config_fallback if import_config_fallback else None
+                )
+                logger.info(f"Importing {filename} into File Search Store via importFile")
+
+            except Exception as fallback_error:
+                logger.error(f"Fallback method also failed: {fallback_error}")
+                raise fallback_error
 
         # Wait for operation to complete with INCREASED TIMEOUT - 120 segundos
         logger.info("Waiting for file import to complete")
@@ -208,14 +458,19 @@ def upload_file():
         if hasattr(operation, 'response') and operation.response:
             document_id = getattr(operation.response, 'name', None)
 
+        # Check for operation errors
+        if hasattr(operation, 'error') and operation.error:
+            logger.error(f"Upload operation failed: {operation.error.message}")
+            return jsonify({'error': f'Upload failed: {operation.error.message}'}), 500
+
         # Track uploaded file
         file_info = {
             'filename': filename,
             'size': file_size,
+            'mime_type': mime_type,  # Store MIME type for debugging
             'uploaded_at': time.strftime('%Y-%m-%d %H:%M:%S'),
             'custom_metadata': custom_metadata,
             'chunking_config': chunking_config if chunking_config.get('enabled') else None,
-            'file_api_name': uploaded_api_file.name,
             'document_id': document_id
         }
         uploaded_files.append(file_info)
@@ -232,6 +487,7 @@ def upload_file():
             'message': f'File "{filename}" uploaded and processed successfully',
             'filename': filename,
             'file_size': file_size,
+            'mime_type': mime_type,
             'store_name': target_store_name,
             'document_id': document_id,
             'uploaded_files': uploaded_files
@@ -242,10 +498,11 @@ def upload_file():
         # Clean up file if it exists
         if filepath and os.path.exists(filepath):
             os.remove(filepath)
-        # Clean up API file if uploaded
+        # Clean up API file if uploaded in fallback
         if uploaded_api_file:
             try:
                 client.files.delete(uploaded_api_file.name)
+                logger.info(f"Cleaned up temporary file: {uploaded_api_file.name}")
             except:
                 pass
         return jsonify({'error': f'Error uploading file: {str(e)}'}), 500
@@ -838,14 +1095,17 @@ def suggest_metadata():
 
         # Get model preference (default to gemini-2.5-flash)
         model = request.form.get('model', 'gemini-2.5-flash')
-        logger.info(f"Using model for metadata generation: {model}")
+
+        # Get language preference (default to 'en')
+        language = request.form.get('language', 'en')
+        logger.info(f"Using model for metadata generation: {model}, language: {language}")
 
         # Read file content
         file_content = file.read()
         file.seek(0)  # Reset file pointer for potential reuse
 
-        # Determine mime type
-        mime_type = file.content_type or 'application/octet-stream'
+        # Determine mime type using our smart detection function
+        mime_type = get_mime_type(file.filename)
 
         logger.info(f"Analyzing document: {file.filename} ({mime_type})")
 
@@ -853,11 +1113,92 @@ def suggest_metadata():
         temp_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(file.filename))
         file.save(temp_path)
 
-        # Upload file to Gemini Files API temporarily for analysis
-        uploaded_file = client.files.upload(file=temp_path)
+        # Determine if we need to extract text or use Files API
+        use_text_extraction = mime_type in [
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',  # DOCX
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',  # XLSX
+            'application/vnd.ms-excel',  # XLS
+            'application/msword'  # DOC (old format)
+        ]
 
-        # System prompt with best practices (in English for technical metadata)
-        system_instruction = """You are an expert assistant in document analysis and metadata management for RAG (Retrieval Augmented Generation) systems.
+        if use_text_extraction:
+            # Extract text for unsupported formats (DOCX, XLSX)
+            logger.info(f"Extracting text from {mime_type} file")
+
+            if 'wordprocessingml' in mime_type or mime_type == 'application/msword':
+                # DOCX or DOC
+                extracted_text = extract_text_from_docx(temp_path)
+            elif 'spreadsheetml' in mime_type or mime_type == 'application/vnd.ms-excel':
+                # XLSX or XLS
+                extracted_text = extract_text_from_xlsx(temp_path)
+            else:
+                extracted_text = ""
+
+            if not extracted_text:
+                raise Exception("Could not extract text from document")
+
+            logger.info(f"Extracted {len(extracted_text)} characters")
+            uploaded_file = None  # No uploaded file for text extraction
+        else:
+            # Upload file to Gemini Files API for supported formats (PDF, images, etc.)
+            logger.info(f"Uploading to Files API: {mime_type}")
+            uploaded_file = client.files.upload(
+                file=temp_path,
+                config={
+                    'mime_type': mime_type,
+                    'display_name': file.filename
+                }
+            )
+
+        # System prompt with best practices - BILINGUAL VERSION
+        if language == 'es':
+            system_instruction = """Eres un asistente experto en análisis de documentos y gestión de metadatos para sistemas RAG (Retrieval Augmented Generation).
+
+Tu trabajo es analizar documentos y extraer metadatos útiles que permitan:
+1. Búsquedas eficientes por tipo, categoría, fecha, autor, etc.
+2. Filtrado preciso en consultas RAG
+3. Organización inteligente de información
+
+FILOSOFÍA: CALIDAD sobre CANTIDAD
+- Sugiere entre 5-12 campos de metadatos (máximo 20 solo si es absolutamente necesario)
+- Cada campo de metadatos debe tener un propósito claro para búsqueda o filtrado
+- Evita redundancias y campos triviales
+- Si un campo no añade valor real para encontrar el documento, NO lo incluyas
+
+REGLAS DE EXTRACCIÓN:
+- Nombres de campos: minúsculas, sin espacios, usa guiones bajos
+- Valores: strings simples o números, no arrays ni objetos
+- Solo incluye metadatos que aparezcan explícitamente en el documento
+- Prioriza metadatos que realmente diferencien este documento de otros
+- IMPORTANTE: Todos los valores de metadatos deben estar EN ESPAÑOL
+
+TIPOS DE DOCUMENTOS COMUNES:
+- Facturas: numero_factura, proveedor, cliente, importe, fecha, estado
+- Contratos: partes, fecha_firma, vigencia, valor, area, estado
+- Informes: autor, departamento, periodo, tipo, confidencialidad
+- Manuales: producto, version, idioma, categoria
+- Emails: remitente, destinatario, asunto, fecha, prioridad
+
+METADATOS UNIVERSALES (si aplican):
+- titulo: título descriptivo del documento (extraído del contenido, NO del nombre de archivo)
+- tipo: categoría del documento
+- fecha: fecha principal (formato YYYY-MM-DD)
+- autor: creador o responsable
+- departamento: área organizacional
+- confidencialidad: publico/interno/confidencial/privado
+- estado: activo/pendiente/archivado/etc
+- etiquetas: palabras clave (máximo 5, separadas por comas)
+
+IMPORTANTE SOBRE EL TÍTULO:
+- Debe extraerse del CONTENIDO del documento (encabezado, primera página, asunto)
+- NO uses el nombre de archivo como título
+- Debe ser descriptivo y profesional
+- Formato: "Tipo de Documento - Descripción Breve"
+- Ejemplo: "Factura de Servicios - Microsoft Azure Noviembre 2024"
+
+Responde SOLO con JSON válido, sin markdown ni explicaciones."""
+        else:
+            system_instruction = """You are an expert assistant in document analysis and metadata management for RAG (Retrieval Augmented Generation) systems.
 
 Your job is to analyze documents and extract useful metadata that enables:
 1. Efficient searches by type, category, date, author, etc.
@@ -902,8 +1243,34 @@ IMPORTANT ABOUT TITLE:
 
 Respond ONLY with valid JSON, without markdown or explanations."""
 
-        # Create analysis prompt (in English for technical metadata)
-        analysis_prompt = f"""Analyze this document and extract relevant metadata.
+        # Create analysis prompt - BILINGUAL VERSION
+        if language == 'es':
+            analysis_prompt = f"""Analiza este documento y extrae metadatos relevantes.
+
+Nombre del archivo: {file.filename}
+
+Proporciona un JSON con los metadatos encontrados. Estructura de ejemplo:
+{{
+    "titulo": "Factura de Servicios Cloud - Empresa XYZ",
+    "tipo": "factura",
+    "numero_factura": "INV-2024-001",
+    "proveedor": "Empresa XYZ",
+    "cliente": "Mi Empresa S.L.",
+    "importe": "1500.00",
+    "fecha": "2024-11-15",
+    "estado": "pendiente"
+}}
+
+Recuerda:
+- SIEMPRE incluye "titulo" extraído del CONTENIDO del documento
+- CALIDAD sobre CANTIDAD: entre 5-12 campos de metadatos útiles (máximo 20)
+- Solo campos que realmente ayuden a encontrar o filtrar este documento
+- Evita campos obvios o redundantes
+- Nombres de campos en minúsculas con guiones bajos
+- TODOS los valores de metadatos en ESPAÑOL
+- Formato JSON puro sin markdown"""
+        else:
+            analysis_prompt = f"""Analyze this document and extract relevant metadata.
 
 Filename: {file.filename}
 
@@ -925,28 +1292,50 @@ Remember:
 - Only fields that really help find or filter this document
 - Avoid obvious or redundant fields
 - Field names in lowercase with underscores
+- ALL metadata values in ENGLISH
 - Pure JSON format without markdown"""
 
         # Generate content with system instruction using selected model
-        response = client.models.generate_content(
-            model=model,
-            contents=[
-                types.Content(
-                    role='user',
-                    parts=[
-                        types.Part.from_uri(
-                            file_uri=uploaded_file.uri,
-                            mime_type=uploaded_file.mime_type
-                        ),
-                        types.Part.from_text(text=analysis_prompt)
-                    ]
+        if use_text_extraction:
+            # Use extracted text for DOCX/XLSX
+            logger.info("Generating metadata from extracted text")
+            response = client.models.generate_content(
+                model=model,
+                contents=[
+                    types.Content(
+                        role='user',
+                        parts=[
+                            types.Part.from_text(text=f"{analysis_prompt}\n\nDocument content:\n{extracted_text[:10000]}")  # Limit to 10k chars
+                        ]
+                    )
+                ],
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    temperature=0.1
                 )
-            ],
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=0.1  # Baja temperatura para respuestas más consistentes
             )
-        )
+        else:
+            # Use Files API for PDF and other supported formats
+            logger.info("Generating metadata from uploaded file")
+            response = client.models.generate_content(
+                model=model,
+                contents=[
+                    types.Content(
+                        role='user',
+                        parts=[
+                            types.Part.from_uri(
+                                file_uri=uploaded_file.uri,
+                                mime_type=uploaded_file.mime_type
+                            ),
+                            types.Part.from_text(text=analysis_prompt)
+                        ]
+                    )
+                ],
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    temperature=0.1
+                )
+            )
 
         # Extract JSON from response
         response_text = response.text.strip()
@@ -963,7 +1352,11 @@ Remember:
 
         # Clean up temporary files
         try:
-            client.files.delete(name=uploaded_file.name)
+            # Only delete from Files API if we uploaded there
+            if uploaded_file is not None:
+                client.files.delete(name=uploaded_file.name)
+
+            # Always delete local temp file
             if os.path.exists(temp_path):
                 os.remove(temp_path)
         except Exception as cleanup_error:

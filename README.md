@@ -20,8 +20,17 @@
 - **Bilingual Support**: Complete Spanish/English translation system
 - **3 Main Tabs**: Chat, File Stores Management, Documentation & HTTP Generator
 - **Real-time Chat**: Interactive RAG queries with document citations
-- **File Upload**: Support for multiple file formats (PDF, DOCX, TXT, MD, HTML, CSV, and more)
-- **AI-Powered Metadata**: Automatic metadata extraction using Gemini models
+- **Enhanced File Upload**:
+  - 60+ file extensions supported (PDF, DOCX, XLSX, CSV, code files, and more)
+  - Smart MIME type detection with 70+ pre-mapped formats
+  - Dual-method upload system (direct + fallback) for maximum reliability
+  - Automatic handling of problematic file formats (CSV, large files)
+- **AI-Powered Metadata** ⭐ NEW:
+  - Automatic metadata extraction using Gemini models
+  - **Bilingual metadata generation** - respects your interface language
+  - **DOCX/XLSX analysis support** - extract metadata from Office documents
+  - Smart text extraction for unsupported file types
+  - Quality over quantity (5-12 metadata fields)
 
 ### 📦 File Store Management
 - Create and manage multiple File Search Stores
@@ -146,8 +155,16 @@ Go to **Settings** tab and enter your Gemini API Key. The app will remember it f
 
 ### 3. Upload Documents
 - Click **Browse Files** or drag & drop
-- Supported formats: PDF, DOCX, XLSX, PPTX, TXT, MD, HTML, CSV, JSON, XML, and many code files (Python, JavaScript, Java, C++, Go, Rust, etc.)
-- **See complete list**: [SUPPORTED_FORMATS.md](SUPPORTED_FORMATS.md) - 200 MIME types supported
+- **60+ file extensions supported** including:
+  - 📄 Documents: PDF, DOC, DOCX, ODT, RTF
+  - 📊 Spreadsheets: CSV, XLSX, XLS, XLSM, ODS
+  - 📈 Presentations: PPTX, PPT, ODP
+  - 💾 Data: JSON, XML, YAML, SQL
+  - 💻 Code: 30+ programming languages (Python, JavaScript, Java, C++, Go, Rust, TypeScript, PHP, Ruby, Swift, Kotlin, Scala, and more)
+  - 📝 Markup: HTML, Markdown, LaTeX, Jupyter Notebooks
+- **Smart MIME type detection** with automatic fallback
+- **Robust upload system**: Direct upload with Files API fallback for problematic files
+- **See complete list**: [SUPPORTED_FORMATS.md](SUPPORTED_FORMATS.md) - 200+ MIME types officially supported by Gemini
 - Add custom metadata (optional)
 - Select AI model for metadata generation (optional)
 
@@ -188,6 +205,8 @@ Go to **Settings** tab and enter your Gemini API Key. The app will remember it f
 │  │  - API endpoints                    │   │
 │  │  - State management                 │   │
 │  │  - File processing                  │   │
+│  │  - Smart MIME detection             │   │
+│  │  - Upload fallback system           │   │
 │  └─────────────────────────────────────┘   │
 └────────────────┬────────────────────────────┘
                  │
@@ -200,6 +219,43 @@ Go to **Settings** tab and enter your Gemini API Key. The app will remember it f
 │  - Citations & grounding                    │
 └─────────────────────────────────────────────┘
 ```
+
+### 🔄 Enhanced File Upload System
+
+The application implements a **robust dual-method upload system** to ensure maximum compatibility:
+
+**Primary Method: Direct Upload**
+- Uses `uploadToFileSearchStore` API
+- Single-step process
+- Automatic MIME type detection by API
+- Fastest and most efficient
+
+**Fallback Method: Files API + Import**
+- Activates when direct upload fails
+- Two-step process: upload to Files API → import to store
+- Explicit MIME type specification
+- Handles edge cases (CSV, large files, etc.)
+
+**Smart MIME Type Detection**
+- 70+ pre-mapped file extensions
+- Fallback to Python `mimetypes` module
+- Safe default for unknown types
+- Optimized for Gemini File Search API
+
+**Supported Extensions:**
+```
+Documents:    txt, pdf, doc, docx, odt, rtf, md
+Spreadsheets: csv, tsv, xlsx, xls, xlsm, xlsb, ods
+Presentations: pptx, ppt, odp
+Data Formats: json, xml, yaml, yml, sql
+Code Files:   py, js, jsx, ts, tsx, java, c, cpp, cs, go, rs, php, rb, swift, kt, scala, pl, r, hs, erl, lua, sh, dart
+Web:          html, htm, css, scss, sass
+Scientific:   ipynb, bib, tex
+Archives:     zip
+... and more (60+ total)
+```
+
+This dual-method approach ensures files are uploaded successfully even when encountering API-specific issues with certain formats.
 
 ---
 
@@ -270,9 +326,21 @@ If you find this project useful, please consider giving it a star on GitHub!
 
 ---
 
-**Last Updated**: November 19, 2025
-**Version**: 1.0.0
+**Last Updated**: November 21, 2025
+**Version**: 1.2.0
 **Status**: Production Ready ✅
+
+### 🆕 Recent Updates (v1.2.0 - Nov 21, 2025)
+- ✅ **Bilingual Metadata Generation**: AI now generates metadata in your interface language (Spanish/English)
+- ✅ **DOCX/XLSX Metadata Analysis**: Extract metadata from Word and Excel documents with AI
+- ✅ **Text Extraction**: Smart local text extraction for Office documents
+- ✅ **Windows File Lock Fix**: Proper file handle management prevents locking issues
+
+### Previous Updates (v1.1.0 - Nov 21, 2025)
+- ✅ **Enhanced File Upload System**: Dual-method upload with automatic fallback
+- ✅ **Smart MIME Detection**: Comprehensive MIME type mapping for 70+ formats
+- ✅ **Extended Format Support**: 60+ file extensions supported
+- ✅ **CSV/Excel Upload Fix**: Resolved upload issues with spreadsheet formats
 
 ---
 

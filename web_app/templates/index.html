@@ -2290,6 +2290,9 @@
                     const metadataModel = localStorage.getItem('metadata_model') || 'gemini-2.5-flash';
                     formData.append('model', metadataModel);
 
+                    // Add language preference for bilingual metadata generation
+                    formData.append('language', currentLang);
+
                     const response = await fetch('/suggest-metadata', {
                         method: 'POST',
                         body: formData
@@ -2522,6 +2525,9 @@
                 // Add model preference
                 const metadataModel = localStorage.getItem('metadata_model') || 'gemini-2.5-flash';
                 formData.append('model', metadataModel);
+
+                // Add language preference for bilingual metadata generation
+                formData.append('language', currentLang);
 
                 // Send to backend
                 const response = await fetch('/suggest-metadata', {
