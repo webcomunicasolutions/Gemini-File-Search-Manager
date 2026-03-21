@@ -17,7 +17,7 @@ from openpyxl import load_workbook
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=['http://localhost:5001', 'http://127.0.0.1:5001'])
 
 # Configure logging - Configuración de logs
 logging.basicConfig(level=logging.INFO)
@@ -552,7 +552,24 @@ def import_from_url():
     if not url.startswith(('http://', 'https://')):
         return jsonify({'error': 'URL must start with http:// or https://'}), 400
 
+    # SSRF protection: block private/internal IPs
+    from urllib.parse import urlparse
+    import socket
+    import ipaddress
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        if not hostname:
+            return jsonify({'error': 'Invalid URL'}), 400
+        ip = socket.gethostbyname(hostname)
+        addr = ipaddress.ip_address(ip)
+        if addr.is_private or addr.is_loopback or addr.is_link_local:
+            return jsonify({'error': 'URLs pointing to private/internal networks are not allowed'}), 400
+    except (socket.gaierror, ValueError) as e:
+        return jsonify({'error': f'Cannot resolve hostname: {str(e)}'}), 400
+
     filepath = None
+    max_size = 100 * 1024 * 1024  # 100 MB
     try:
         # Download file from URL
         logger.info(f"Downloading file from URL: {url}")
@@ -565,15 +582,16 @@ def import_from_url():
         if not filename or filename == '':
             filename = 'downloaded_file'
 
-        # Check size (100 MB limit)
-        content_length = int(resp.headers.get('content-length', 0))
-        if content_length > 100 * 1024 * 1024:
-            return jsonify({'error': 'File exceeds 100 MB limit'}), 400
-
-        # Save to temp
+        # Save to temp with real-time size check
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        downloaded_size = 0
         with open(filepath, 'wb') as f:
             for chunk in resp.iter_content(chunk_size=8192):
+                downloaded_size += len(chunk)
+                if downloaded_size > max_size:
+                    f.close()
+                    os.remove(filepath)
+                    return jsonify({'error': 'File exceeds 100 MB limit'}), 400
                 f.write(chunk)
 
         file_size = os.path.getsize(filepath)
@@ -615,6 +633,13 @@ def import_from_url():
 
         if not operation.done:
             return jsonify({'error': 'Upload timed out. The file may still be processing.'}), 408
+
+        # Check for operation error
+        if hasattr(operation, 'error') and operation.error:
+            error_msg = getattr(operation.error, 'message', str(operation.error))
+            logger.error(f"Import URL operation failed: {error_msg}")
+            os.remove(filepath)
+            return jsonify({'error': f'Import failed: {error_msg}'}), 500
 
         # Get document ID
         document_id = None
@@ -700,13 +725,8 @@ def chat():
         return jsonify({'error': 'Please upload a file first'}), 400
 
     try:
-        # Add user message to history
-        conversation_history.append({
-            'role': 'user',
-            'content': user_message
-        })
-
         # Build conversation context (last MAX_HISTORY messages) - Contexto de conversación
+        # Note: user message is added to history AFTER successful API call
         context_messages = conversation_history[-MAX_HISTORY:]
 
         # Create prompt with conversation history
@@ -786,7 +806,11 @@ def chat():
 
         assistant_message = response.text
 
-        # Add assistant response to history
+        # Add both messages to history only after successful API call
+        conversation_history.append({
+            'role': 'user',
+            'content': user_message
+        })
         conversation_history.append({
             'role': 'assistant',
             'content': assistant_message
@@ -1075,7 +1099,7 @@ def get_api_info():
     try:
         api_info = {
             'success': True,
-            'api_key': api_key,
+            'api_key': f"{api_key[:8]}...{api_key[-4:]}" if api_key and len(api_key) > 12 else '***',
             'store_exists': file_search_store is not None,
             'store_name': file_search_store.name if file_search_store else None,
             'store_display_name': getattr(file_search_store, 'display_name', 'RAG-App-Store') if file_search_store else 'RAG-App-Store',
@@ -1691,4 +1715,5 @@ def status():
 if __name__ == '__main__':
     # Load persisted state on startup - Cargar estado persistido al iniciar
     load_state()
-    app.run(debug=True, host='localhost', port=5001)
+    debug_mode = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
+    app.run(debug=debug_mode, host='localhost', port=5001)

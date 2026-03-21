@@ -1502,10 +1502,10 @@
                 'settings.model.metadataModel': '🏷️ Modelo para Generación de Metadatos con IA:',
                 'settings.model.savePreference': '💾 Guardar Preferencia',
                 'settings.model.metadataModelDesc': 'Este modelo se usará cuando le des a "✨ Analizar con IA" para sugerir metadatos automáticamente',
-                'settings.model.flash25': 'Rápido y económico - Recomendado',
-                'settings.model.pro25': 'Más preciso, más caro',
-                'settings.model.flash15': 'Versión anterior rápida',
-                'settings.model.pro15': 'Versión anterior precisa',
+                'settings.model.flash3': 'Gemini 3 - Recomendado',
+                'settings.model.flashlite31': 'Rapido y economico',
+                'settings.model.pro25': 'Estable, mas preciso',
+                'settings.model.flashlite25': 'Estable, economico',
 
                 // Settings - Info
                 'settings.info.title': 'ℹ️ Información de la Aplicación',
@@ -1741,10 +1741,10 @@
                 'settings.model.metadataModel': '🏷️ Model for AI Metadata Generation:',
                 'settings.model.savePreference': '💾 Save Preference',
                 'settings.model.metadataModelDesc': 'This model will be used when you click "✨ Analyze with AI" to automatically suggest metadata',
-                'settings.model.flash25': 'Fast and economical - Recommended',
-                'settings.model.pro25': 'More accurate, more expensive',
-                'settings.model.flash15': 'Previous fast version',
-                'settings.model.pro15': 'Previous accurate version',
+                'settings.model.flash3': 'Gemini 3 - Recommended',
+                'settings.model.flashlite31': 'Fast and economical',
+                'settings.model.pro25': 'Stable, more accurate',
+                'settings.model.flashlite25': 'Stable, economical',
 
                 // Settings - Info
                 'settings.info.title': 'ℹ️ Application Information',
@@ -2224,7 +2224,8 @@
 
             el.style.display = 'block';
             document.getElementById('costEstimateDetails').innerHTML =
-                `${filesQueue.length} archivo(s) | ${totalMB.toFixed(2)} MB | ~${Math.round(estimatedTokens).toLocaleString()} tokens | <strong>~$${estimatedCost.toFixed(4)} USD</strong>`;
+                `${filesQueue.length} archivo(s) | ${totalMB.toFixed(2)} MB | ~${Math.round(estimatedTokens).toLocaleString()} tokens | <strong>~$${estimatedCost.toFixed(4)} USD</strong>
+                <br><span style="font-size: 10px; color: #A16207;">Estimacion aproximada (~250K tok/MB para texto). PDFs con imagenes pueden variar.</span>`;
         }
 
         // Remove file from queue
