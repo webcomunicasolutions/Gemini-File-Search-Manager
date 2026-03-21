@@ -565,11 +565,11 @@ def chat():
             file_search_store_names=[file_search_store.name]
         )
 
-        # Add metadata filters if provided - Convertir al formato de Gemini API
+        # Add metadata filters if provided - AIP-160 string format
         if metadata_filters and len(metadata_filters) > 0:
-            # Construir metadata filters según formato de Gemini
-            # Formato: metadataFilters=[{key: "chunk.custom_metadata.X", conditions: [{stringValue: "Y", operation: "EQUAL"}]}]
-            gemini_filters = []
+            # Build AIP-160 filter string: key=value pairs joined with AND
+            # Docs: https://google.aip.dev/160
+            filter_parts = []
 
             for filter_item in metadata_filters:
                 key = filter_item.get('key', '')
@@ -578,41 +578,24 @@ def chat():
                 if not key or not value:
                     continue
 
-                # Determinar si el valor es numérico o string
-                is_numeric = False
-                numeric_value = None
+                # Determine if value is numeric or string
                 try:
                     numeric_value = float(value)
-                    is_numeric = True
+                    # Numeric: no quotes
+                    filter_parts.append(f'{key}={value}')
                 except (ValueError, TypeError):
-                    pass
+                    # String: wrap in quotes
+                    escaped_value = str(value).replace('"', '\\"')
+                    filter_parts.append(f'{key}="{escaped_value}"')
 
-                # Construir el filtro en formato Gemini
-                filter_condition = {
-                    'key': f'chunk.custom_metadata.{key}',
-                    'conditions': []
-                }
-
-                if is_numeric:
-                    filter_condition['conditions'].append({
-                        'numericValue': numeric_value,
-                        'operation': 'EQUAL'
-                    })
-                else:
-                    filter_condition['conditions'].append({
-                        'stringValue': str(value),
-                        'operation': 'EQUAL'
-                    })
-
-                gemini_filters.append(filter_condition)
-
-            if gemini_filters:
-                file_search_config.metadata_filters = gemini_filters
-                logger.info(f"Applied {len(gemini_filters)} metadata filter(s) to search")
+            if filter_parts:
+                metadata_filter_string = " AND ".join(filter_parts)
+                file_search_config.metadata_filter = metadata_filter_string
+                logger.info(f"Applied metadata filter: {metadata_filter_string}")
 
         # Query with File Search
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3-flash-preview",
             contents=full_prompt,
             config=types.GenerateContentConfig(
                 tools=[types.Tool(file_search=file_search_config)]
@@ -865,7 +848,7 @@ def get_api_info():
             'store_display_name': getattr(file_search_store, 'display_name', 'RAG-App-Store') if file_search_store else 'RAG-App-Store',
             'file_count': len(uploaded_files),
             'files': uploaded_files,
-            'model': 'gemini-2.5-flash',
+            'model': 'gemini-3-flash-preview',
             'example_metadata_filters': []
         }
 
@@ -1093,8 +1076,8 @@ def suggest_metadata():
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
 
-        # Get model preference (default to gemini-2.5-flash)
-        model = request.form.get('model', 'gemini-2.5-flash')
+        # Get model preference (default to gemini-3-flash-preview)
+        model = request.form.get('model', 'gemini-3-flash-preview')
 
         # Get language preference (default to 'en')
         language = request.form.get('language', 'en')

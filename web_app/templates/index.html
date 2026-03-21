@@ -1142,10 +1142,10 @@
                                     Modelo para Chat:
                                 </label>
                                 <div style="font-family: Monaco, monospace; color: #0081BA; font-size: 14px; font-weight: 600;">
-                                    gemini-2.5-flash
+                                    gemini-3-flash-preview
                                 </div>
                                 <p style="margin: 4px 0 0 0; font-size: 12px; color: #6B7280;" data-i18n="settings.model.chatModelDesc">
-                                    Modelo optimizado para RAG con File Search
+                                    Modelo Gemini 3 optimizado para RAG con File Search
                                 </p>
                             </div>
 
@@ -1167,10 +1167,10 @@
                                 🏷️ Modelo para Generación de Metadatos con IA:
                             </label>
                             <select id="metadataModelSelector" style="width: 100%; padding: 10px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 13px; margin-bottom: 8px;">
-                                <option value="gemini-2.5-flash" data-i18n-suffix="settings.model.flash25">gemini-2.5-flash (Rápido y económico - Recomendado)</option>
-                                <option value="gemini-2.5-pro" data-i18n-suffix="settings.model.pro25">gemini-2.5-pro (Más preciso, más caro)</option>
-                                <option value="gemini-1.5-flash" data-i18n-suffix="settings.model.flash15">gemini-1.5-flash (Versión anterior rápida)</option>
-                                <option value="gemini-1.5-pro" data-i18n-suffix="settings.model.pro15">gemini-1.5-pro (Versión anterior precisa)</option>
+                                <option value="gemini-3-flash-preview" data-i18n-suffix="settings.model.flash3">gemini-3-flash-preview (Gemini 3 - Recomendado)</option>
+                                <option value="gemini-3.1-flash-lite-preview" data-i18n-suffix="settings.model.flashlite31">gemini-3.1-flash-lite-preview (Rápido y económico)</option>
+                                <option value="gemini-2.5-pro" data-i18n-suffix="settings.model.pro25">gemini-2.5-pro (Estable, más preciso)</option>
+                                <option value="gemini-2.5-flash-lite" data-i18n-suffix="settings.model.flashlite25">gemini-2.5-flash-lite (Estable, económico)</option>
                             </select>
                             <button onclick="saveMetadataModelPreference()" class="btn btn-primary" style="width: 100%; padding: 10px;" data-i18n="settings.model.savePreference">
                                 💾 Guardar Preferencia
@@ -2287,7 +2287,7 @@
                     formData.append('file', fileItem.file);
 
                     // Add model preference
-                    const metadataModel = localStorage.getItem('metadata_model') || 'gemini-2.5-flash';
+                    const metadataModel = localStorage.getItem('metadata_model') || 'gemini-3-flash-preview';
                     formData.append('model', metadataModel);
 
                     // Add language preference for bilingual metadata generation
@@ -2523,7 +2523,7 @@
                 formData.append('file', selectedFile);
 
                 // Add model preference
-                const metadataModel = localStorage.getItem('metadata_model') || 'gemini-2.5-flash';
+                const metadataModel = localStorage.getItem('metadata_model') || 'gemini-3-flash-preview';
                 formData.append('model', metadataModel);
 
                 // Add language preference for bilingual metadata generation
@@ -3084,7 +3084,7 @@
                 }
 
                 // Load metadata model preference
-                const metadataModel = localStorage.getItem('metadata_model') || 'gemini-2.5-flash';
+                const metadataModel = localStorage.getItem('metadata_model') || 'gemini-3-flash-preview';
                 const selector = document.getElementById('metadataModelSelector');
                 if (selector) {
                     selector.value = metadataModel;
@@ -3466,10 +3466,10 @@
                             </label>
                             <select id="param-model" onchange="generateCode()"
                                     style="width: 100%; padding: 12px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 14px;">
-                                <option value="gemini-2.5-flash" selected>gemini-2.5-flash</option>
+                                <option value="gemini-3-flash-preview" selected>gemini-3-flash-preview</option>
+                                <option value="gemini-3.1-flash-lite-preview">gemini-3.1-flash-lite-preview</option>
                                 <option value="gemini-2.5-pro">gemini-2.5-pro</option>
-                                <option value="gemini-1.5-flash">gemini-1.5-flash</option>
-                                <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+                                <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
                             </select>
                         </div>
                     `;
@@ -3595,7 +3595,7 @@
                 mimeType: document.getElementById('param-mime-type')?.value || 'application/pdf',
                 chatStore: document.getElementById('param-chat-store')?.value || '',
                 query: document.getElementById('param-query')?.value || '',
-                model: document.getElementById('param-model')?.value || 'gemini-2.5-flash',
+                model: document.getElementById('param-model')?.value || 'gemini-3-flash-preview',
                 listStore: document.getElementById('param-list-store')?.value || '',
                 deleteDocStore: document.getElementById('param-delete-doc-store')?.value || '',
                 docId: document.getElementById('param-doc-id')?.value || '',
