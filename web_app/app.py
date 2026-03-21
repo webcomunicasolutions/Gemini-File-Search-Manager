@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 import logging
 import mimetypes
+import requests as http_requests
 from docx import Document as DocxDocument
 from openpyxl import load_workbook
 
@@ -193,6 +194,30 @@ def save_state():
         logger.info("State saved successfully")
     except Exception as e:
         logger.error(f"Error saving state: {e}")
+
+def load_state_value(key, default=None):
+    """Load a specific value from state file"""
+    try:
+        if os.path.exists(PERSISTENCE_FILE):
+            with open(PERSISTENCE_FILE, 'r') as f:
+                state = json.load(f)
+                return state.get(key, default)
+    except Exception:
+        pass
+    return default
+
+def save_state_value(key, value):
+    """Save a specific key-value to state file"""
+    try:
+        state = {}
+        if os.path.exists(PERSISTENCE_FILE):
+            with open(PERSISTENCE_FILE, 'r') as f:
+                state = json.load(f)
+        state[key] = value
+        with open(PERSISTENCE_FILE, 'w') as f:
+            json.dump(state, f, indent=2)
+    except Exception as e:
+        logger.error(f"Error saving state value {key}: {e}")
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -508,6 +533,140 @@ def upload_file():
         return jsonify({'error': f'Error uploading file: {str(e)}'}), 500
 
 # ============================================
+# IMPORT FROM URL - Importar desde URL
+# ============================================
+
+@app.route('/import-url', methods=['POST'])
+def import_from_url():
+    """Download a file from URL and import into File Search Store"""
+    global file_search_store, uploaded_files
+
+    data = request.json
+    url = data.get('url', '').strip()
+    store_name = data.get('store_name', '')
+    custom_metadata = data.get('metadata', {})
+
+    if not url:
+        return jsonify({'error': 'URL is required'}), 400
+
+    if not url.startswith(('http://', 'https://')):
+        return jsonify({'error': 'URL must start with http:// or https://'}), 400
+
+    filepath = None
+    try:
+        # Download file from URL
+        logger.info(f"Downloading file from URL: {url}")
+        resp = http_requests.get(url, timeout=120, stream=True)
+        resp.raise_for_status()
+
+        # Determine filename
+        filename = url.split('/')[-1].split('?')[0] or 'downloaded_file'
+        filename = secure_filename(filename)
+        if not filename or filename == '':
+            filename = 'downloaded_file'
+
+        # Check size (100 MB limit)
+        content_length = int(resp.headers.get('content-length', 0))
+        if content_length > 100 * 1024 * 1024:
+            return jsonify({'error': 'File exceeds 100 MB limit'}), 400
+
+        # Save to temp
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        with open(filepath, 'wb') as f:
+            for chunk in resp.iter_content(chunk_size=8192):
+                f.write(chunk)
+
+        file_size = os.path.getsize(filepath)
+        mime_type = get_mime_type(filename)
+        logger.info(f"Downloaded {filename} ({file_size} bytes, {mime_type})")
+
+        # Determine target store
+        target_store = file_search_store
+        target_store_name = file_search_store.name if file_search_store else None
+
+        if store_name:
+            try:
+                target_store = client.file_search_stores.get(name=store_name)
+                target_store_name = store_name
+            except Exception:
+                return jsonify({'error': f'Store not found: {store_name}'}), 404
+
+        if not target_store:
+            return jsonify({'error': 'No active store. Create one first.'}), 400
+
+        # Upload to File Search Store
+        operation = client.file_search_stores.upload_to_file_search_store(
+            file=filepath,
+            file_search_store_name=target_store_name,
+            config={
+                'display_name': filename,
+            }
+        )
+
+        # Wait for operation
+        max_wait = 120
+        wait_time = 0
+        while not operation.done and wait_time < max_wait:
+            time.sleep(5)
+            wait_time += 5
+            operation = client.operations.get(operation)
+            if wait_time % 15 == 0:
+                logger.info(f"Import from URL: still waiting... ({wait_time}s elapsed)")
+
+        if not operation.done:
+            return jsonify({'error': 'Upload timed out. The file may still be processing.'}), 408
+
+        # Get document ID
+        document_id = None
+        if hasattr(operation, 'response') and operation.response:
+            document_id = getattr(operation.response, 'name', None)
+
+        # Build metadata dict
+        metadata_dict = {}
+        if isinstance(custom_metadata, list):
+            for item in custom_metadata:
+                metadata_dict[item.get('key', '')] = item.get('value', '')
+        elif isinstance(custom_metadata, dict):
+            metadata_dict = custom_metadata
+        metadata_dict['source_url'] = url
+
+        # Track file
+        uploaded_files.append({
+            'filename': filename,
+            'size': file_size,
+            'uploaded_at': time.strftime('%Y-%m-%d %H:%M:%S'),
+            'custom_metadata': metadata_dict,
+            'document_id': document_id,
+            'source': 'url'
+        })
+        save_state()
+
+        # Clean up
+        os.remove(filepath)
+
+        return jsonify({
+            'success': True,
+            'message': f'File "{filename}" imported from URL successfully',
+            'filename': filename,
+            'file_size': file_size,
+            'mime_type': mime_type,
+            'source_url': url,
+            'document_id': document_id,
+            'store_name': target_store_name
+        })
+
+    except http_requests.exceptions.RequestException as e:
+        logger.error(f"Error downloading from URL: {str(e)}")
+        if filepath and os.path.exists(filepath):
+            os.remove(filepath)
+        return jsonify({'error': f'Error downloading file: {str(e)}'}), 400
+    except Exception as e:
+        logger.error(f"Error importing from URL: {str(e)}")
+        if filepath and os.path.exists(filepath):
+            os.remove(filepath)
+        return jsonify({'error': f'Error importing file: {str(e)}'}), 500
+
+# ============================================
 # CHAT WITH RAG & CITATIONS - Chat con RAG y citaciones
 # Incluye MAX_HISTORY = 7 para límite de conversación
 # ============================================
@@ -520,6 +679,19 @@ def chat():
     user_message = data.get('message', '')
     metadata_filters = data.get('metadata_filters', [])  # Array de filtros del frontend
     system_prompt = data.get('system_prompt', '')
+    structured_output = data.get('structured_output', False)
+    response_schema = data.get('response_schema', None)
+
+    # Model selection with whitelist
+    ALLOWED_CHAT_MODELS = [
+        'gemini-3-flash-preview',
+        'gemini-3.1-flash-lite-preview',
+        'gemini-2.5-pro',
+        'gemini-2.5-flash-lite'
+    ]
+    model = data.get('model', 'gemini-3-flash-preview')
+    if model not in ALLOWED_CHAT_MODELS:
+        model = 'gemini-3-flash-preview'
 
     if not user_message:
         return jsonify({'error': 'No message provided'}), 400
@@ -594,12 +766,22 @@ def chat():
                 logger.info(f"Applied metadata filter: {metadata_filter_string}")
 
         # Query with File Search
+        logger.info(f"Chat using model: {model}")
+        # Build generation config
+        gen_config = {
+            'tools': [types.Tool(file_search=file_search_config)]
+        }
+
+        # Add structured output if enabled (Gemini 3+ only)
+        if structured_output and response_schema:
+            gen_config['response_mime_type'] = 'application/json'
+            gen_config['response_schema'] = response_schema
+            logger.info("Structured output enabled with schema")
+
         response = client.models.generate_content(
-            model="gemini-3-flash-preview",
+            model=model,
             contents=full_prompt,
-            config=types.GenerateContentConfig(
-                tools=[types.Tool(file_search=file_search_config)]
-            )
+            config=types.GenerateContentConfig(**gen_config)
         )
 
         assistant_message = response.text
@@ -646,8 +828,10 @@ def chat():
         return jsonify({
             'success': True,
             'response': assistant_message,
+            'is_structured': bool(structured_output and response_schema),
             'metadata': metadata,
             'conversation_length': len(conversation_history),
+            'model_used': model,
             'metadata_filters_applied': metadata_filters if metadata_filters else None,
             'filters_count': len(metadata_filters) if metadata_filters else 0
         })
@@ -768,12 +952,15 @@ def list_stores():
             except Exception as doc_error:
                 logger.warning(f"Error listing documents for store {store.name}: {str(doc_error)}")
 
+            store_size = int(getattr(store, 'size_bytes', 0) or 0)
             stores.append({
                 'name': store.name,
                 'display_name': getattr(store, 'display_name', 'N/A'),
                 'displayName': getattr(store, 'display_name', 'N/A'),
                 'create_time': str(getattr(store, 'create_time', 'N/A')),
                 'createTime': str(getattr(store, 'create_time', 'N/A')),
+                'size_bytes': store_size,
+                'sizeBytes': store_size,
                 'active_documents_count': getattr(store, 'active_documents_count', 0),
                 'activeDocumentsCount': getattr(store, 'active_documents_count', 0),
                 'pending_documents_count': getattr(store, 'pending_documents_count', 0),
@@ -796,6 +983,52 @@ def list_stores():
     except Exception as e:
         logger.error(f"Error listing stores: {str(e)}")
         return jsonify({'error': f'Error listing stores: {str(e)}'}), 500
+
+@app.route('/storage-usage', methods=['GET'])
+def storage_usage():
+    """Get aggregated storage usage across all stores - Uso de almacenamiento total"""
+    try:
+        total_size = 0
+        store_count = 0
+        for store in client.file_search_stores.list():
+            total_size += int(getattr(store, 'size_bytes', 0) or 0)
+            store_count += 1
+
+        tier_limits = {
+            'free': 1 * 1024**3,
+            'tier1': 10 * 1024**3,
+            'tier2': 100 * 1024**3,
+            'tier3': 1 * 1024**4
+        }
+
+        current_tier = load_state_value('current_tier', 'free')
+        tier_limit = tier_limits.get(current_tier, tier_limits['free'])
+        usage_pct = (total_size / tier_limit * 100) if tier_limit > 0 else 0
+
+        return jsonify({
+            'success': True,
+            'total_size_bytes': total_size,
+            'total_size_mb': round(total_size / (1024 * 1024), 2),
+            'store_count': store_count,
+            'current_tier': current_tier,
+            'tier_limit_bytes': tier_limit,
+            'tier_limit_gb': round(tier_limit / (1024**3), 1),
+            'usage_percentage': round(usage_pct, 2),
+            'tier_limits': {k: round(v / (1024**3), 1) for k, v in tier_limits.items()}
+        })
+    except Exception as e:
+        logger.error(f"Error getting storage usage: {str(e)}")
+        return jsonify({'error': f'Error getting storage usage: {str(e)}'}), 500
+
+@app.route('/update-tier', methods=['POST'])
+def update_tier():
+    """Update current tier setting - Actualizar tier actual"""
+    data = request.json
+    tier = data.get('tier', 'free')
+    if tier not in ['free', 'tier1', 'tier2', 'tier3']:
+        return jsonify({'error': 'Invalid tier'}), 400
+    save_state_value('current_tier', tier)
+    return jsonify({'success': True, 'tier': tier})
 
 @app.route('/delete-store', methods=['DELETE'])
 def delete_store():

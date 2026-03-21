@@ -933,6 +933,19 @@
                         </div>
                         <input type="file" id="fileInput" class="file-input" multiple>
 
+                        <!-- Import from URL -->
+                        <div style="margin-top: 16px; padding: 14px; background: #F0F9FF; border-radius: 8px; border: 1px solid #BAE6FD;">
+                            <div style="font-size: 13px; font-weight: 600; color: #0C4A6E; margin-bottom: 8px;">🔗 Importar desde URL</div>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="text" id="importUrlInput" placeholder="https://example.com/document.pdf"
+                                    style="flex: 1; padding: 8px 12px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 13px;">
+                                <button onclick="importFromUrl()" class="btn btn-primary" style="padding: 8px 16px; white-space: nowrap;">
+                                    📥 Importar
+                                </button>
+                            </div>
+                            <div id="importUrlStatus" style="margin-top: 8px; display: none; font-size: 12px;"></div>
+                        </div>
+
                         <!-- Files Queue Section -->
                         <div id="filesQueue" style="display: none; margin-top: 20px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -942,7 +955,11 @@
                                 </button>
                             </div>
                             <div id="filesQueueList" style="max-height: 300px; overflow-y: auto;"></div>
-                            <button id="uploadAllFiles" class="btn btn-primary" style="width: 100%; margin-top: 16px;" data-i18n="upload.docs.uploadAll">
+                            <div id="costEstimate" style="display: none; margin-top: 12px; padding: 10px 12px; background: #FFFBEB; border: 1px solid #FCD34D; border-radius: 8px;">
+                                <div style="font-size: 12px; font-weight: 600; color: #92400E;">💰 Coste estimado de indexacion</div>
+                                <div id="costEstimateDetails" style="font-size: 12px; color: #78350F; margin-top: 4px;"></div>
+                            </div>
+                            <button id="uploadAllFiles" class="btn btn-primary" style="width: 100%; margin-top: 12px;" data-i18n="upload.docs.uploadAll">
                                 📤 Subir Todos los Archivos
                             </button>
                         </div>
@@ -1047,6 +1064,38 @@
                     <div id="chatStoreInfo" style="display: none; padding: 10px; background: #EFF6FF; border-radius: 6px; border: 1px solid #BFDBFE; font-size: 12px;">
                         <div style="color: #1E40AF; font-weight: 600; margin-bottom: 4px;" id="chatStoreInfoName"></div>
                         <div style="color: #6B7280;" id="chatStoreInfoDocs"></div>
+                    </div>
+                </div>
+
+                <!-- Chat Model Selector -->
+                <div class="card" style="height: fit-content;">
+                    <h3 style="font-size: 14px; margin-bottom: 8px; color: #111827;">🤖 Modelo de Chat</h3>
+                    <select id="chatModelSelector" onchange="saveChatModelPreference()" style="width: 100%; padding: 8px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 12px;">
+                        <option value="gemini-3-flash-preview">gemini-3-flash-preview</option>
+                        <option value="gemini-3.1-flash-lite-preview">gemini-3.1-flash-lite-preview</option>
+                        <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+                        <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
+                    </select>
+                    <p style="margin: 4px 0 0 0; font-size: 11px; color: #9CA3AF;">Gemini 3 Flash recomendado para RAG</p>
+                </div>
+
+                <!-- Structured Output -->
+                <div class="card" style="height: fit-content;">
+                    <h3 style="font-size: 14px; margin-bottom: 8px; color: #111827;">📋 Structured Output</h3>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
+                        <input type="checkbox" id="enableStructuredOutput" onchange="toggleSchemaConfig()">
+                        <span>Respuesta JSON</span>
+                    </label>
+                    <div id="schemaConfig" style="display: none; margin-top: 10px;">
+                        <select id="schemaPreset" onchange="applySchemaPreset()" style="width: 100%; padding: 6px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 12px; margin-bottom: 8px;">
+                            <option value="">-- Esquema personalizado --</option>
+                            <option value="summary">Resumen estructurado</option>
+                            <option value="table">Tabla de datos</option>
+                            <option value="qa">Preguntas y respuestas</option>
+                            <option value="extraction">Extraccion de datos</option>
+                        </select>
+                        <textarea id="customSchema" placeholder='{"type":"object","properties":{...}}'
+                            style="width: 100%; height: 80px; font-family: monospace; font-size: 11px; padding: 8px; border: 1px solid #D1D5DB; border-radius: 6px; resize: vertical;"></textarea>
                     </div>
                 </div>
 
@@ -1178,6 +1227,35 @@
                             <p style="margin: 8px 0 0 0; font-size: 12px; color: #6B7280;" data-i18n="settings.model.metadataModelDesc">
                                 Este modelo se usará cuando le des a "✨ Analizar con IA" para sugerir metadatos automáticamente
                             </p>
+                        </div>
+                    </div>
+
+                    <!-- Storage Usage -->
+                    <div style="margin-bottom: 32px;">
+                        <h3 style="font-size: 18px; margin-bottom: 16px; color: #111827;">📊 Uso de Almacenamiento</h3>
+                        <div style="background: #F9FAFB; padding: 16px; border-radius: 8px;">
+                            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                <label style="font-size: 13px; font-weight: 600; color: #374151;">Tier actual:</label>
+                                <select id="tierSelector" onchange="updateTier()" style="padding: 6px 10px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 13px;">
+                                    <option value="free">Free (1 GB)</option>
+                                    <option value="tier1">Tier 1 (10 GB)</option>
+                                    <option value="tier2">Tier 2 (100 GB)</option>
+                                    <option value="tier3">Tier 3 (1 TB)</option>
+                                </select>
+                            </div>
+                            <div id="storageUsageBar" style="margin-bottom: 8px;">
+                                <div style="display: flex; justify-content: space-between; font-size: 12px; color: #6B7280; margin-bottom: 4px;">
+                                    <span id="storageUsed">Cargando...</span>
+                                    <span id="storageLimit"></span>
+                                </div>
+                                <div style="width: 100%; height: 12px; background: #E5E7EB; border-radius: 6px; overflow: hidden;">
+                                    <div id="storageProgressBar" style="height: 100%; width: 0%; background: #10B981; border-radius: 6px; transition: width 0.5s ease;"></div>
+                                </div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #9CA3AF;">
+                                <span id="storageStoreCount"></span>
+                                <span id="storagePercentage"></span>
+                            </div>
                         </div>
                     </div>
 
@@ -2096,6 +2174,7 @@
                             </div>
                             <div style="font-size: 12px; color: #6B7280;">
                                 ${(fileItem.file.size / 1024).toFixed(2)} KB
+                                <span id="file-status-${fileItem.id}" style="margin-left: 8px;">${fileItem.status === 'error' ? '<span style="color:#DC2626;">❌ Error previo</span>' : ''}</span>
                             </div>
                         </div>
                         <button onclick="removeFromQueue('${fileItem.id}')"
@@ -2121,6 +2200,25 @@
             `).join('');
 
             container.innerHTML = filesHTML;
+            updateCostEstimate();
+        }
+
+        // Cost estimator
+        function updateCostEstimate() {
+            const el = document.getElementById('costEstimate');
+            if (!el) return;
+            if (filesQueue.length === 0) {
+                el.style.display = 'none';
+                return;
+            }
+            const totalBytes = filesQueue.reduce((sum, f) => sum + f.file.size, 0);
+            const totalMB = totalBytes / (1024 * 1024);
+            const estimatedTokens = totalMB * 250000;
+            const estimatedCost = (estimatedTokens / 1000000) * 0.15;
+
+            el.style.display = 'block';
+            document.getElementById('costEstimateDetails').innerHTML =
+                `${filesQueue.length} archivo(s) | ${totalMB.toFixed(2)} MB | ~${Math.round(estimatedTokens).toLocaleString()} tokens | <strong>~$${estimatedCost.toFixed(4)} USD</strong>`;
         }
 
         // Remove file from queue
@@ -2391,7 +2489,7 @@
             }
         });
 
-        // Upload all files
+        // Upload all files with per-file progress
         document.getElementById('uploadAllFiles')?.addEventListener('click', async () => {
             if (filesQueue.length === 0) {
                 showNotification(t('upload.metadata.noFilesInQueue'), 'error');
@@ -2407,27 +2505,44 @@
 
             const uploadBtn = document.getElementById('uploadAllFiles');
             uploadBtn.disabled = true;
-            uploadBtn.textContent = t('upload.metadata.uploadingProgress').replace('{current}', 0).replace('{total}', filesQueue.length);
 
             let successCount = 0;
             let errorCount = 0;
+            const total = filesQueue.length;
+
+            // Show batch progress bar
+            uploadBtn.innerHTML = `<span>⏳ 0/${total} procesados</span>`;
 
             for (let i = 0; i < filesQueue.length; i++) {
                 const fileItem = filesQueue[i];
+                const statusEl = document.getElementById(`file-status-${fileItem.id}`);
+
+                // Mark as uploading
+                if (statusEl) {
+                    statusEl.innerHTML = '<span style="color: #2563EB;">⏳ Subiendo...</span>';
+                }
 
                 try {
                     await uploadSingleFile(fileItem);
                     successCount++;
+                    fileItem.status = 'success';
+                    if (statusEl) {
+                        statusEl.innerHTML = '<span style="color: #059669;">✅ Subido</span>';
+                    }
                 } catch (error) {
                     console.error(`Error uploading ${fileItem.file.name}:`, error);
                     errorCount++;
+                    fileItem.status = 'error';
+                    if (statusEl) {
+                        statusEl.innerHTML = `<span style="color: #DC2626;">❌ Error</span>`;
+                    }
                 }
 
-                uploadBtn.textContent = t('upload.metadata.uploadingProgress').replace('{current}', i + 1).replace('{total}', filesQueue.length);
+                uploadBtn.innerHTML = `<span>⏳ ${i + 1}/${total} procesados</span>`;
             }
 
             uploadBtn.disabled = false;
-            uploadBtn.textContent = t('upload.metadata.uploadAllFiles');
+            uploadBtn.innerHTML = t('upload.metadata.uploadAllFiles');
 
             if (successCount > 0) {
                 showNotification(t('upload.metadata.uploadSuccess').replace('{count}', successCount), 'success');
@@ -2436,7 +2551,8 @@
                 showNotification(t('upload.metadata.uploadErrors').replace('{count}', errorCount), 'error');
             }
 
-            filesQueue = [];
+            // Only remove successful files, keep failed ones
+            filesQueue = filesQueue.filter(f => f.status === 'error');
             renderFilesQueue();
         });
 
@@ -2969,7 +3085,9 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         message,
-                        metadata_filters: metadataFilters
+                        model: document.getElementById('chatModelSelector')?.value || 'gemini-3-flash-preview',
+                        metadata_filters: metadataFilters,
+                        ...getStructuredOutputConfig()
                     })
                 });
 
@@ -2984,9 +3102,22 @@
                     const fullMetadata = {
                         ...data.metadata,
                         filters_applied: data.metadata_filters_applied,
-                        filters_count: data.filters_count
+                        filters_count: data.filters_count,
+                        model_used: data.model_used
                     };
-                    addMessage('assistant', data.response, fullMetadata);
+
+                    // Format structured output as pretty JSON
+                    let displayResponse = data.response;
+                    if (data.is_structured) {
+                        try {
+                            const parsed = JSON.parse(data.response);
+                            displayResponse = '```json\n' + JSON.stringify(parsed, null, 2) + '\n```';
+                        } catch (e) {
+                            // If not valid JSON, show as-is
+                        }
+                    }
+
+                    addMessage('assistant', displayResponse, fullMetadata);
                 } else {
                     addMessage('assistant', `Error: ${data.error}`);
                 }
@@ -3063,6 +3194,7 @@
             // Load data based on selected tab
             if (tabName === 'settings') {
                 loadSettings();
+                loadStorageUsage();
             } else if (tabName === 'docs' && !apiInfoCache) {
                 loadApiDocumentation();
             } else if (tabName === 'stores') {
@@ -3102,6 +3234,185 @@
             localStorage.setItem('metadata_model', selectedModel);
 
             showNotification(t('notifications.modelSaved').replace('{model}', selectedModel), 'success');
+        }
+
+        // Chat model preference
+        window.saveChatModelPreference = function() {
+            const selector = document.getElementById('chatModelSelector');
+            if (selector) {
+                localStorage.setItem('chat_model', selector.value);
+            }
+        }
+
+        function loadChatModelPreference() {
+            const saved = localStorage.getItem('chat_model');
+            const selector = document.getElementById('chatModelSelector');
+            if (saved && selector) {
+                selector.value = saved;
+            }
+        }
+
+        // Storage usage functions
+        async function loadStorageUsage() {
+            try {
+                const response = await fetch('/storage-usage');
+                const data = await response.json();
+                if (!data.success) return;
+
+                const tierSelector = document.getElementById('tierSelector');
+                if (tierSelector) tierSelector.value = data.current_tier;
+
+                const usedMB = data.total_size_mb;
+                const limitGB = data.tier_limit_gb;
+                const pct = data.usage_percentage;
+
+                document.getElementById('storageUsed').textContent = usedMB < 1024
+                    ? `${usedMB.toFixed(2)} MB usado`
+                    : `${(usedMB / 1024).toFixed(2)} GB usado`;
+                document.getElementById('storageLimit').textContent = `de ${limitGB} GB`;
+                document.getElementById('storageStoreCount').textContent = `${data.store_count} store(s)`;
+                document.getElementById('storagePercentage').textContent = `${pct.toFixed(1)}%`;
+
+                const bar = document.getElementById('storageProgressBar');
+                bar.style.width = `${Math.min(pct, 100)}%`;
+                bar.style.background = pct < 50 ? '#10B981' : pct < 80 ? '#F59E0B' : '#EF4444';
+            } catch (e) {
+                console.error('Error loading storage usage:', e);
+            }
+        }
+
+        // Structured output functions
+        const SCHEMA_PRESETS = {
+            summary: {
+                type: 'object',
+                properties: {
+                    titulo: { type: 'string', description: 'Titulo del resumen' },
+                    resumen: { type: 'string', description: 'Resumen principal' },
+                    puntos_clave: { type: 'array', items: { type: 'string' }, description: 'Puntos clave' },
+                    fuentes: { type: 'array', items: { type: 'string' }, description: 'Documentos fuente' }
+                },
+                required: ['titulo', 'resumen', 'puntos_clave']
+            },
+            table: {
+                type: 'object',
+                properties: {
+                    titulo: { type: 'string', description: 'Titulo de la tabla' },
+                    columnas: { type: 'array', items: { type: 'string' }, description: 'Nombres de columnas' },
+                    filas: { type: 'array', items: { type: 'object' }, description: 'Filas de datos' }
+                },
+                required: ['titulo', 'columnas', 'filas']
+            },
+            qa: {
+                type: 'object',
+                properties: {
+                    pregunta: { type: 'string' },
+                    respuesta: { type: 'string' },
+                    confianza: { type: 'string', description: 'alta/media/baja' },
+                    fuentes: { type: 'array', items: { type: 'string' } }
+                },
+                required: ['pregunta', 'respuesta', 'confianza']
+            },
+            extraction: {
+                type: 'object',
+                properties: {
+                    datos_extraidos: { type: 'array', items: {
+                        type: 'object',
+                        properties: {
+                            campo: { type: 'string' },
+                            valor: { type: 'string' },
+                            fuente: { type: 'string' }
+                        }
+                    }}
+                },
+                required: ['datos_extraidos']
+            }
+        };
+
+        window.toggleSchemaConfig = function() {
+            const enabled = document.getElementById('enableStructuredOutput').checked;
+            document.getElementById('schemaConfig').style.display = enabled ? 'block' : 'none';
+        }
+
+        window.applySchemaPreset = function() {
+            const preset = document.getElementById('schemaPreset').value;
+            const textarea = document.getElementById('customSchema');
+            if (preset && SCHEMA_PRESETS[preset]) {
+                textarea.value = JSON.stringify(SCHEMA_PRESETS[preset], null, 2);
+            } else {
+                textarea.value = '';
+            }
+        }
+
+        function getStructuredOutputConfig() {
+            const enabled = document.getElementById('enableStructuredOutput')?.checked;
+            if (!enabled) return { structured_output: false };
+
+            const textarea = document.getElementById('customSchema');
+            let schema = null;
+            try {
+                if (textarea.value.trim()) {
+                    schema = JSON.parse(textarea.value.trim());
+                }
+            } catch (e) {
+                showNotification('Schema JSON invalido', 'error');
+                return { structured_output: false };
+            }
+            return { structured_output: true, response_schema: schema };
+        }
+
+        // Import from URL
+        window.importFromUrl = async function() {
+            const urlInput = document.getElementById('importUrlInput');
+            const statusEl = document.getElementById('importUrlStatus');
+            const url = urlInput.value.trim();
+
+            if (!url) {
+                showNotification('Introduce una URL', 'error');
+                return;
+            }
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                showNotification('La URL debe empezar con http:// o https://', 'error');
+                return;
+            }
+
+            statusEl.style.display = 'block';
+            statusEl.innerHTML = '<span style="color: #2563EB;">⏳ Descargando e importando...</span>';
+
+            try {
+                const response = await fetch('/import-url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    statusEl.innerHTML = `<span style="color: #059669;">✅ ${data.filename} importado correctamente</span>`;
+                    urlInput.value = '';
+                    showNotification(`Archivo "${data.filename}" importado desde URL`, 'success');
+                } else {
+                    statusEl.innerHTML = `<span style="color: #DC2626;">❌ ${data.error}</span>`;
+                    showNotification(data.error, 'error');
+                }
+            } catch (e) {
+                statusEl.innerHTML = `<span style="color: #DC2626;">❌ Error de conexion</span>`;
+                showNotification('Error importando desde URL', 'error');
+            }
+        }
+
+        window.updateTier = async function() {
+            const tier = document.getElementById('tierSelector').value;
+            try {
+                await fetch('/update-tier', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tier })
+                });
+                await loadStorageUsage();
+                showNotification(`Tier actualizado a ${tier}`, 'success');
+            } catch (e) {
+                showNotification('Error actualizando tier', 'error');
+            }
         }
 
         // Load API documentation
@@ -4899,6 +5210,9 @@ checkOperation();`;
             } catch (error) {
                 console.error('Error loading state:', error);
             }
+
+            // Load saved preferences
+            loadChatModelPreference();
         }
 
         // Load Documents Tab
