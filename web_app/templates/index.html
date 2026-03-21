@@ -936,9 +936,15 @@
                         <!-- Import from URL -->
                         <div style="margin-top: 16px; padding: 14px; background: #F0F9FF; border-radius: 8px; border: 1px solid #BAE6FD;">
                             <div style="font-size: 13px; font-weight: 600; color: #0C4A6E; margin-bottom: 8px;">🔗 Importar desde URL</div>
-                            <div style="display: flex; gap: 8px;">
+                            <p style="font-size: 11px; color: #6B7280; margin: 0 0 8px 0;">Descarga e importa un archivo desde una URL publica directamente al store</p>
+                            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
                                 <input type="text" id="importUrlInput" placeholder="https://example.com/document.pdf"
                                     style="flex: 1; padding: 8px 12px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 13px;">
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <select id="importUrlStore" style="flex: 1; padding: 8px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 12px;">
+                                    <option value="">-- Store actual --</option>
+                                </select>
                                 <button onclick="importFromUrl()" class="btn btn-primary" style="padding: 8px 16px; white-space: nowrap;">
                                     📥 Importar
                                 </button>
@@ -1190,11 +1196,11 @@
                                 <label style="display: block; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: #374151;" data-i18n="settings.model.chatModel">
                                     Modelo para Chat:
                                 </label>
-                                <div style="font-family: Monaco, monospace; color: #0081BA; font-size: 14px; font-weight: 600;">
+                                <div id="settingsChatModel" style="font-family: Monaco, monospace; color: #0081BA; font-size: 14px; font-weight: 600;">
                                     gemini-3-flash-preview
                                 </div>
                                 <p style="margin: 4px 0 0 0; font-size: 12px; color: #6B7280;" data-i18n="settings.model.chatModelDesc">
-                                    Modelo Gemini 3 optimizado para RAG con File Search
+                                    Configurable desde la pestaña Chat
                                 </p>
                             </div>
 
@@ -1267,7 +1273,7 @@
                             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
                                 <div>
                                     <strong style="display: block; color: #6B7280; font-size: 13px; margin-bottom: 4px;" data-i18n="settings.info.version">Versión:</strong>
-                                    <div style="color: #111827; font-size: 14px;">1.0.0</div>
+                                    <div style="color: #111827; font-size: 14px;">2.0.0</div>
                                 </div>
                                 <div>
                                     <strong style="display: block; color: #6B7280; font-size: 13px; margin-bottom: 4px;" data-i18n="settings.info.framework">Framework:</strong>
@@ -3221,6 +3227,11 @@
                 if (selector) {
                     selector.value = metadataModel;
                 }
+
+                // Reflect chat model in settings
+                const chatModel = localStorage.getItem('chat_model') || 'gemini-3-flash-preview';
+                const chatModelEl = document.getElementById('settingsChatModel');
+                if (chatModelEl) chatModelEl.textContent = chatModel;
             } catch (error) {
                 console.error('Error loading settings:', error);
             }
@@ -3361,10 +3372,28 @@
         }
 
         // Import from URL
+        async function loadImportUrlStores() {
+            const select = document.getElementById('importUrlStore');
+            if (!select) return;
+            try {
+                const resp = await fetch('/stores');
+                const data = await resp.json();
+                let html = '<option value="">-- Store actual --</option>';
+                if (data.stores) {
+                    data.stores.forEach(s => {
+                        html += `<option value="${s.name}">${s.display_name || s.name}</option>`;
+                    });
+                }
+                select.innerHTML = html;
+            } catch (e) {}
+        }
+
         window.importFromUrl = async function() {
             const urlInput = document.getElementById('importUrlInput');
             const statusEl = document.getElementById('importUrlStatus');
+            const storeSelect = document.getElementById('importUrlStore');
             const url = urlInput.value.trim();
+            const storeName = storeSelect?.value || '';
 
             if (!url) {
                 showNotification('Introduce una URL', 'error');
@@ -3376,18 +3405,18 @@
             }
 
             statusEl.style.display = 'block';
-            statusEl.innerHTML = '<span style="color: #2563EB;">⏳ Descargando e importando...</span>';
+            statusEl.innerHTML = '<span style="color: #2563EB;">⏳ Descargando e importando... (puede tardar hasta 2 min)</span>';
 
             try {
                 const response = await fetch('/import-url', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url })
+                    body: JSON.stringify({ url, store_name: storeName })
                 });
                 const data = await response.json();
 
                 if (data.success) {
-                    statusEl.innerHTML = `<span style="color: #059669;">✅ ${data.filename} importado correctamente</span>`;
+                    statusEl.innerHTML = `<span style="color: #059669;">✅ ${data.filename} (${(data.file_size/1024).toFixed(1)} KB) importado correctamente</span>`;
                     urlInput.value = '';
                     showNotification(`Archivo "${data.filename}" importado desde URL`, 'success');
                 } else {
@@ -3525,6 +3554,18 @@
                                 <div style="font-size: 28px; margin-bottom: 8px;">⏳</div>
                                 <div style="font-weight: 700; color: #334155; font-size: 16px;">${t('docs.operations.getOperation')}</div>
                                 <div style="font-size: 13px; color: #64748B;">${t('docs.operations.getOperationDesc')}</div>
+                            </button>
+
+                            <button class="operation-btn" data-operation="import-url" style="padding: 20px; background: #F8FAFC; border: 2px solid #E2E8F0; border-radius: 12px; cursor: pointer; text-align: left; transition: all 0.3s;">
+                                <div style="font-size: 28px; margin-bottom: 8px;">🔗</div>
+                                <div style="font-weight: 700; color: #334155; font-size: 16px;">Import from URL</div>
+                                <div style="font-size: 13px; color: #64748B;">Importar archivo desde URL publica</div>
+                            </button>
+
+                            <button class="operation-btn" data-operation="storage-usage" style="padding: 20px; background: #F8FAFC; border: 2px solid #E2E8F0; border-radius: 12px; cursor: pointer; text-align: left; transition: all 0.3s;">
+                                <div style="font-size: 28px; margin-bottom: 8px;">📊</div>
+                                <div style="font-weight: 700; color: #334155; font-size: 16px;">Storage Usage</div>
+                                <div style="font-size: 13px; color: #64748B;">Ver uso de almacenamiento y tier</div>
                             </button>
                         </div>
                     </div>
@@ -3851,6 +3892,27 @@
                         </div>
                     `;
                     break;
+
+                case 'import-url':
+                    formHTML = `
+                        <div style="margin-bottom: 16px;">
+                            <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600; color: #374151;">
+                                URL del archivo
+                            </label>
+                            <input type="text" id="param-import-url" value="https://example.com/document.pdf" onkeyup="generateCode()"
+                                   style="width: 100%; padding: 12px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 14px;">
+                            <p style="margin: 4px 0 0 0; font-size: 12px; color: #6B7280;">URL publica del archivo a importar (max 100 MB)</p>
+                        </div>
+                    `;
+                    break;
+
+                case 'storage-usage':
+                    formHTML = `
+                        <div style="padding: 16px; background: #EFF6FF; border-radius: 8px;">
+                            <p style="margin: 0; color: #1E40AF; font-size: 14px;">No requiere parametros. Devuelve el uso total de almacenamiento y tier actual.</p>
+                        </div>
+                    `;
+                    break;
             }
 
             container.innerHTML = formHTML;
@@ -3911,7 +3973,8 @@
                 deleteDocStore: document.getElementById('param-delete-doc-store')?.value || '',
                 docId: document.getElementById('param-doc-id')?.value || '',
                 deleteStore: document.getElementById('param-delete-store')?.value || '',
-                operationId: document.getElementById('param-operation-id')?.value || ''
+                operationId: document.getElementById('param-operation-id')?.value || '',
+                importUrl: document.getElementById('param-import-url')?.value || ''
             };
         }
 
@@ -3999,6 +4062,23 @@ curl -X POST "<upload_url>" \\
                 case 'get-operation':
                     code = `curl -X GET "${baseUrl}/${params.operationId}?key=${params.apiKey}"`;
                     explainText = t('docs.explain.getOperation');
+                    break;
+
+                case 'import-url':
+                    code = `# Importar archivo desde URL publica al Manager
+curl -X POST "http://localhost:5001/import-url" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "url": "${params.importUrl || 'https://example.com/document.pdf'}",
+    "store_name": "${params.chatStore || ''}"
+  }'`;
+                    explainText = 'Descarga un archivo desde una URL publica y lo importa al File Search Store. Max 100 MB.';
+                    break;
+
+                case 'storage-usage':
+                    code = `# Obtener uso de almacenamiento
+curl -X GET "http://localhost:5001/storage-usage"`;
+                    explainText = 'Devuelve el uso total de almacenamiento, numero de stores, tier actual y porcentaje de uso.';
                     break;
             }
 
@@ -4173,6 +4253,37 @@ if operation.done:
     else:
         print(f"✅ Resultado: {operation.response}")`;
                     explainText = t('docs.explain.getOperation');
+                    break;
+
+                case 'import-url':
+                    code = `import requests
+
+# Importar archivo desde URL al Manager
+response = requests.post('http://localhost:5001/import-url', json={
+    'url': '${params.importUrl || 'https://example.com/document.pdf'}',
+    'store_name': '${params.chatStore || ''}'
+})
+
+data = response.json()
+if data.get('success'):
+    print(f"✅ Importado: {data['filename']} ({data['file_size']} bytes)")
+else:
+    print(f"❌ Error: {data.get('error')}")`;
+                    explainText = 'Descarga un archivo desde URL y lo importa al File Search Store via el Manager.';
+                    break;
+
+                case 'storage-usage':
+                    code = `import requests
+
+# Obtener uso de almacenamiento
+response = requests.get('http://localhost:5001/storage-usage')
+data = response.json()
+
+print(f"Almacenamiento: {data['total_size_mb']} MB / {data['tier_limit_gb']} GB")
+print(f"Stores: {data['store_count']}")
+print(f"Uso: {data['usage_percentage']}%")
+print(f"Tier: {data['current_tier']}")`;
+                    explainText = 'Consulta el uso de almacenamiento total del proyecto.';
                     break;
             }
 
@@ -5213,6 +5324,7 @@ checkOperation();`;
 
             // Load saved preferences
             loadChatModelPreference();
+            loadImportUrlStores();
         }
 
         // Load Documents Tab
