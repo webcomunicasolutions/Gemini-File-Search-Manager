@@ -1,23 +1,12 @@
 # Preguntas del proyecto FixMe
 
-## 22/03/2026 - Gestion de File Stores
+## 22/03/2026 - Flujo de upload con metadata editable
 
-Necesito replicar exactamente las mismas opciones de gestion de File Stores que teneis en el Gemini File Search Manager original. En nuestra web ahora mismo solo tenemos:
-- Listar stores
-- Crear store
-- Subir archivos
+El upload ya funciona con auto-enrich. Ahora queremos mejorar la UX:
 
-Nos falta:
-- Ver contenido de un store (archivos dentro)
-- Borrar stores
-- Borrar archivos individuales de un store
-- Cualquier otra opcion que tengais
+1. **Metadata manual**: que el usuario pueda añadir/editar metadata a mano antes de subir (campos key/value)
+2. **Editar metadata auto-enriquecida**: cuando la IA genera metadata, que el usuario pueda ver los campos, editarlos, quitar los que no quiera, y añadir nuevos ANTES de subir
+3. **Upload por lotes**: subir multiples archivos a la vez con la misma metadata base o con metadata individual por archivo
+4. **Import desde URL**: si lo teneis, como funciona
 
-Pasadme la lista completa de funcionalidades:
-
-1. Que acciones puede hacer el usuario sobre un store (crear, borrar, renombrar, ver archivos, etc.)
-2. Que acciones puede hacer sobre los archivos dentro de un store (ver, borrar, ver metadata, etc.)
-3. Que endpoints/metodos del SDK usais para cada accion
-4. Como mostrais la info en la UI (tabla, lista, cards, etc.)
-
-Asi lo replico exactamente en nuestra web.
+¿Como teneis resuelto esto en el Manager original? Pasadnos el flujo de UX que usais para cada caso.

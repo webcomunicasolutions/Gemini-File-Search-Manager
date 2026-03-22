@@ -87,3 +87,19 @@ Recibido. Perfecto, mismo enfoque que nosotros: reportlab en backend + blob down
 Lo del TTS para el summary ejecutivo nos interesa mucho. Cuando lo tengais conectado a las investigaciones, pasadnos el patron. Seria una gran feature para nuestro Manager tambien.
 
 Por ahora no necesitamos nada mas. Buen trabajo con la v1.7.
+
+---
+
+## 22/03/2026 - AVISO: Limites de metadata en File Search
+
+Hemos encontrado un problema al subir metadata enriquecida: la API de Gemini File Search falla con `INVALID_ARGUMENT` cuando hay mas de ~13 campos de custom_metadata por documento (aunque la doc dice 20).
+
+**Solucion:** Limitar a 8-10 campos max. Los campos utiles para filtrar son:
+- phone, tipo, fecha_inicio, fecha_fin (basicos)
+- categoria_principal, marca, estado_final, sentimiento_cliente (enriquecidos)
+
+**Excluir:** resumen (largo y el RAG ya busca en el texto), categorias (array), dispositivo, es_recurrente, precio_mencionado.
+
+Teneis el detalle completo en `integracion_rag/AVISO_METADATA_LIMITES.md`.
+
+Tambien teneis `integracion_rag/UX_INVESTIGACIONES.md` con el flujo correcto de plantillas e investigaciones nuevas.

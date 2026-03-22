@@ -748,10 +748,12 @@ def chat():
 
     # Model selection with whitelist
     ALLOWED_CHAT_MODELS = [
+        'gemini-3.1-pro-preview',
         'gemini-3-flash-preview',
         'gemini-3.1-flash-lite-preview',
         'gemini-2.5-pro',
-        'gemini-2.5-flash-lite'
+        'gemini-2.5-flash',
+        'gemini-2.5-flash-lite',
     ]
     model = data.get('model', 'gemini-3-flash-preview')
     if model not in ALLOWED_CHAT_MODELS:
@@ -2029,7 +2031,7 @@ def investigate():
         title (str): Title of the investigation
         questions (list[str]): List of questions to investigate
         store_name (str, optional): Store to use; defaults to current active store
-        model (str, optional): Model to use; defaults to gemini-2.5-pro
+        model (str, optional): Model to use; defaults to gemini-3.1-pro-preview
 
     Returns:
         JSON with the full investigation object including sections and summary
@@ -2042,7 +2044,7 @@ def investigate():
         title = data.get('title', '').strip()
         questions = data.get('questions', [])
         store_name = data.get('store_name', '')
-        model = data.get('model', 'gemini-2.5-pro')
+        model = data.get('model', 'gemini-3.1-pro-preview')
 
         if not title:
             return jsonify({'error': 'Title is required'}), 400
