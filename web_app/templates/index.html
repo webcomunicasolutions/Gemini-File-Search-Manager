@@ -1357,15 +1357,24 @@
                         <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">
                             Plantilla de investigacion
                         </label>
-                        <select id="investigationTemplate" onchange="applyInvestigationTemplate()"
-                            style="width: 100%; padding: 10px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 14px; color: #374151; background: white;">
-                            <option value="">-- Seleccionar plantilla --</option>
-                            <option value="satisfaccion">Satisfaccion del cliente</option>
-                            <option value="precios">Analisis de precios</option>
-                            <option value="operativa">Operativa del taller</option>
-                            <option value="comunicacion">Comunicacion</option>
-                            <option value="captacion">Captacion de clientes</option>
-                        </select>
+                        <div style="display: flex; gap: 8px;">
+                            <select id="investigationTemplate" onchange="applyInvestigationTemplate()"
+                                style="flex: 1; padding: 10px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 14px; color: #374151; background: white;">
+                                <option value="">-- Seleccionar plantilla --</option>
+                                <optgroup label="Predefinidas">
+                                    <option value="satisfaccion">Satisfaccion del cliente</option>
+                                    <option value="precios">Analisis de precios</option>
+                                    <option value="operativa">Operativa del taller</option>
+                                    <option value="comunicacion">Comunicacion</option>
+                                    <option value="captacion">Captacion de clientes</option>
+                                </optgroup>
+                                <optgroup label="Mis plantillas" id="customTemplatesGroup">
+                                </optgroup>
+                            </select>
+                            <button onclick="saveAsTemplate()" class="btn-secondary" style="padding: 8px 12px; white-space: nowrap; font-size: 12px;" title="Guardar como plantilla">
+                                💾 Guardar
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Title -->
@@ -6760,8 +6769,83 @@ console.log(\`Storage: \${data.total_size_mb} MB / \${data.tier_limit_gb} GB (\$
             }
         };
 
+        // Custom templates management
+        function getCustomTemplates() {
+            try {
+                return JSON.parse(localStorage.getItem('custom_inv_templates') || '{}');
+            } catch (e) { return {}; }
+        }
+
+        function loadCustomTemplatesInSelector() {
+            const group = document.getElementById('customTemplatesGroup');
+            if (!group) return;
+            const custom = getCustomTemplates();
+            group.innerHTML = '';
+            Object.keys(custom).forEach(key => {
+                const opt = document.createElement('option');
+                opt.value = `custom_${key}`;
+                opt.textContent = custom[key].title;
+                group.appendChild(opt);
+            });
+        }
+
+        window.saveAsTemplate = function() {
+            const title = document.getElementById('investigationTitle').value.trim();
+            const questions = Array.from(document.querySelectorAll('.inv-question'))
+                .map(input => input.value.trim())
+                .filter(q => q);
+
+            if (!title || questions.length === 0) {
+                showNotification('Escribe un titulo y al menos una pregunta antes de guardar', 'error');
+                return;
+            }
+
+            const key = title.toLowerCase().replace(/[^a-z0-9]/g, '_').substring(0, 30);
+            const custom = getCustomTemplates();
+            custom[key] = { title, questions };
+            localStorage.setItem('custom_inv_templates', JSON.stringify(custom));
+            loadCustomTemplatesInSelector();
+            showNotification(`Plantilla "${title}" guardada`, 'success');
+        }
+
+        window.deleteCustomTemplate = function(key) {
+            const custom = getCustomTemplates();
+            delete custom[key];
+            localStorage.setItem('custom_inv_templates', JSON.stringify(custom));
+            loadCustomTemplatesInSelector();
+            showNotification('Plantilla eliminada', 'success');
+        }
+
+        // Load custom templates on init
+        setTimeout(loadCustomTemplatesInSelector, 500);
+
         window.applyInvestigationTemplate = function() {
             const templateKey = document.getElementById('investigationTemplate').value;
+
+            // Check custom templates first
+            if (templateKey.startsWith('custom_')) {
+                const customKey = templateKey.replace('custom_', '');
+                const custom = getCustomTemplates();
+                if (!custom[customKey]) return;
+                const template = custom[customKey];
+                document.getElementById('investigationTitle').value = template.title;
+                const container = document.getElementById('investigationQuestions');
+                container.innerHTML = '';
+                template.questions.forEach((q, index) => {
+                    const row = document.createElement('div');
+                    row.className = 'inv-question-row';
+                    row.style.cssText = 'display: flex; gap: 8px; margin-bottom: 8px;';
+                    row.innerHTML = `
+                        <input type="text" class="inv-question" placeholder="Pregunta ${index + 1}..." value="${q.replace(/"/g, '&quot;')}"
+                            style="flex: 1; padding: 8px 12px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 14px;">
+                        <button onclick="removeInvQuestion(this)"
+                            style="padding: 8px 12px; background: #EF4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; min-width: 38px;">✕</button>
+                    `;
+                    container.appendChild(row);
+                });
+                return;
+            }
+
             if (!templateKey || !INVESTIGATION_TEMPLATES[templateKey]) return;
 
             const template = INVESTIGATION_TEMPLATES[templateKey];
