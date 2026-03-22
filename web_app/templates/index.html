@@ -1350,93 +1350,105 @@
 
                 <!-- Left column: New investigation form -->
                 <div class="card">
-                    <h2>🔬 Nueva Investigacion</h2>
+                    <h2 style="margin-bottom: 16px;">🔬 Investigaciones</h2>
 
-                    <!-- Template selector -->
-                    <div style="margin-bottom: 16px;">
-                        <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">
-                            Plantilla de investigacion
-                        </label>
-                        <div style="display: flex; gap: 8px;">
-                            <select id="investigationTemplate" onchange="applyInvestigationTemplate()"
-                                style="flex: 1; padding: 10px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 14px; color: #374151; background: white;">
-                                <option value="">-- Seleccionar plantilla --</option>
-                                <optgroup label="Predefinidas">
-                                    <option value="satisfaccion">Satisfaccion del cliente</option>
-                                    <option value="precios">Analisis de precios</option>
-                                    <option value="operativa">Operativa del taller</option>
-                                    <option value="comunicacion">Comunicacion</option>
-                                    <option value="captacion">Captacion de clientes</option>
-                                </optgroup>
-                                <optgroup label="Mis plantillas" id="customTemplatesGroup">
-                                </optgroup>
-                            </select>
-                            <button onclick="saveAsTemplate()" class="btn-secondary" style="padding: 8px 12px; white-space: nowrap; font-size: 12px;" title="Guardar como plantilla">
-                                💾 Guardar
-                            </button>
-                        </div>
+                    <!-- Two options: Template or New -->
+                    <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+                        <button onclick="showInvMode('template')" id="invModeTemplateBtn" class="btn btn-primary" style="flex: 1; padding: 12px;">
+                            📋 Usar plantilla
+                        </button>
+                        <button onclick="showInvMode('new')" id="invModeNewBtn" class="btn-secondary" style="flex: 1; padding: 12px;">
+                            ✏️ Nueva investigacion
+                        </button>
                     </div>
 
-                    <!-- Title -->
-                    <div style="margin-bottom: 16px;">
+                    <!-- Template selection mode -->
+                    <div id="invModeTemplate" style="margin-bottom: 16px;">
                         <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">
-                            Titulo de la investigacion
+                            Seleccionar plantilla
                         </label>
-                        <input type="text" id="investigationTitle" placeholder="Ej: Analisis de satisfaccion del cliente Q1 2025"
-                            style="width: 100%; padding: 10px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 14px; color: #374151;">
-                    </div>
-
-                    <!-- Questions list -->
-                    <div style="margin-bottom: 8px;">
-                        <label style="display: block; margin-bottom: 10px; font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">
-                            Preguntas
-                        </label>
-                        <div id="investigationQuestions">
-                            <div style="display: flex; gap: 8px; margin-bottom: 8px;" class="inv-question-row">
-                                <input type="text" class="inv-question"
-                                    placeholder="Pregunta 1..."
-                                    style="flex: 1; padding: 8px 12px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 14px;">
-                                <button onclick="removeInvQuestion(this)"
-                                    style="padding: 8px 12px; background: #EF4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; min-width: 38px; transition: background 0.2s;"
-                                    onmouseover="this.style.background='#DC2626'" onmouseout="this.style.background='#EF4444'">
-                                    ✕
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <button onclick="addInvQuestion()" class="btn btn-secondary"
-                        style="width: 100%; padding: 9px; margin-bottom: 16px; font-size: 13px;">
-                        + Anadir pregunta
-                    </button>
-
-                    <!-- Model selector -->
-                    <div style="margin-bottom: 16px;">
-                        <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">
-                            Modelo
-                        </label>
-                        <select id="investigationModel"
-                            style="width: 100%; padding: 8px 12px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 14px; color: #374151; background: white;">
-                            <option value="gemini-2.5-pro">gemini-2.5-pro (Recomendado)</option>
-                            <option value="gemini-2.5-flash">gemini-2.5-flash (Rapido)</option>
-                            <option value="gemini-2.0-flash">gemini-2.0-flash (Economico)</option>
+                        <select id="investigationTemplate" onchange="applyInvestigationTemplate()"
+                            style="width: 100%; padding: 10px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 14px; color: #374151; background: white;">
+                            <option value="">-- Elige una plantilla --</option>
+                            <optgroup label="Predefinidas">
+                                <option value="satisfaccion">Satisfaccion del cliente</option>
+                                <option value="precios">Analisis de precios</option>
+                                <option value="operativa">Operativa del taller</option>
+                                <option value="comunicacion">Comunicacion</option>
+                                <option value="captacion">Captacion de clientes</option>
+                            </optgroup>
+                            <optgroup label="Mis plantillas" id="customTemplatesGroup">
+                            </optgroup>
                         </select>
                     </div>
 
-                    <!-- Run button -->
-                    <button onclick="runInvestigation()" class="btn btn-primary" id="runInvestigationBtn"
-                        style="width: 100%; padding: 13px; font-size: 15px; font-weight: 700;">
-                        🔬 Investigar
-                    </button>
+                    <!-- Investigation form (shared between template and new) -->
+                    <div id="invFormArea" style="display: none;">
+                        <!-- Title -->
+                        <div style="margin-bottom: 16px;">
+                            <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">
+                                Titulo de la investigacion
+                            </label>
+                            <input type="text" id="investigationTitle" placeholder="Ej: Analisis de satisfaccion del cliente Q1 2025"
+                                style="width: 100%; padding: 10px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 14px; color: #374151;">
+                        </div>
 
-                    <!-- Progress indicator -->
-                    <div id="investigationProgress" style="display: none; margin-top: 16px; padding: 14px; background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; color: #1D4ED8; font-size: 14px; text-align: center;">
-                        <div style="margin-bottom: 8px; font-weight: 600;">Investigando... esto puede tardar unos minutos</div>
-                        <div id="investigationProgressText" style="color: #3B82F6; font-size: 13px;">Iniciando...</div>
+                        <!-- Questions list -->
+                        <div style="margin-bottom: 8px;">
+                            <label style="display: block; margin-bottom: 10px; font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">
+                                Preguntas
+                            </label>
+                            <div id="investigationQuestions">
+                                <div style="display: flex; gap: 8px; margin-bottom: 8px;" class="inv-question-row">
+                                    <input type="text" class="inv-question"
+                                        placeholder="Pregunta 1..."
+                                        style="flex: 1; padding: 8px 12px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 14px;">
+                                    <button onclick="removeInvQuestion(this)"
+                                        style="padding: 8px 12px; background: #EF4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; min-width: 38px; transition: background 0.2s;"
+                                        onmouseover="this.style.background='#DC2626'" onmouseout="this.style.background='#EF4444'">
+                                        ✕
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button onclick="addInvQuestion()" class="btn btn-secondary"
+                            style="width: 100%; padding: 9px; margin-bottom: 16px; font-size: 13px;">
+                            + Anadir pregunta
+                        </button>
+
+                        <!-- Model selector -->
+                        <div style="margin-bottom: 16px;">
+                            <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">
+                                Modelo
+                            </label>
+                            <select id="investigationModel"
+                                style="width: 100%; padding: 8px 12px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 14px; color: #374151; background: white;">
+                                <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview (Recomendado)</option>
+                                <option value="gemini-3-flash-preview">gemini-3-flash-preview (Rapido)</option>
+                            </select>
+                        </div>
+
+                        <!-- Action buttons -->
+                        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                            <button onclick="runInvestigation()" class="btn btn-primary" id="runInvestigationBtn"
+                                style="flex: 1; padding: 13px; font-size: 15px; font-weight: 700;">
+                                🔬 Investigar
+                            </button>
+                            <button onclick="saveAsTemplate()" class="btn-secondary" style="padding: 13px 16px; font-size: 13px;" title="Guardar como plantilla">
+                                💾 Guardar plantilla
+                            </button>
+                        </div>
+
+                        <!-- Progress indicator -->
+                        <div id="investigationProgress" style="display: none; margin-top: 16px; padding: 14px; background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; color: #1D4ED8; font-size: 14px; text-align: center;">
+                            <div style="margin-bottom: 8px; font-weight: 600;">Investigando... esto puede tardar unos minutos</div>
+                            <div id="investigationProgressText" style="color: #3B82F6; font-size: 13px;">Iniciando...</div>
+                        </div>
+
+                        <!-- Results area -->
+                        <div id="investigationResults" style="display: none; margin-top: 20px;"></div>
                     </div>
-
-                    <!-- Results area -->
-                    <div id="investigationResults" style="display: none; margin-top: 20px;"></div>
                 </div>
 
                 <!-- Right column: Saved investigations list -->
@@ -6769,6 +6781,40 @@ console.log(\`Storage: \${data.total_size_mb} MB / \${data.tier_limit_gb} GB (\$
             }
         };
 
+        // Investigation mode switching
+        window.showInvMode = function(mode) {
+            const templateSection = document.getElementById('invModeTemplate');
+            const formArea = document.getElementById('invFormArea');
+            const templateBtn = document.getElementById('invModeTemplateBtn');
+            const newBtn = document.getElementById('invModeNewBtn');
+
+            if (mode === 'template') {
+                templateSection.style.display = 'block';
+                formArea.style.display = 'none';
+                templateBtn.className = 'btn btn-primary';
+                newBtn.className = 'btn-secondary';
+                // Reset template selector
+                document.getElementById('investigationTemplate').value = '';
+            } else {
+                templateSection.style.display = 'none';
+                formArea.style.display = 'block';
+                templateBtn.className = 'btn-secondary';
+                newBtn.className = 'btn btn-primary';
+                // Clear form for new investigation
+                document.getElementById('investigationTitle').value = '';
+                const container = document.getElementById('investigationQuestions');
+                container.innerHTML = `
+                    <div style="display: flex; gap: 8px; margin-bottom: 8px;" class="inv-question-row">
+                        <input type="text" class="inv-question" placeholder="Pregunta 1..."
+                            style="flex: 1; padding: 8px 12px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 14px;">
+                        <button onclick="removeInvQuestion(this)"
+                            style="padding: 8px 12px; background: #EF4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; min-width: 38px;">✕</button>
+                    </div>
+                `;
+                document.getElementById('investigationResults').style.display = 'none';
+            }
+        }
+
         // Custom templates management
         function getCustomTemplates() {
             try {
@@ -6821,17 +6867,21 @@ console.log(\`Storage: \${data.total_size_mb} MB / \${data.tier_limit_gb} GB (\$
 
         window.applyInvestigationTemplate = function() {
             const templateKey = document.getElementById('investigationTemplate').value;
+            if (!templateKey) return;
 
-            // Check custom templates first
+            // Show form area when template is selected
+            document.getElementById('invFormArea').style.display = 'block';
+
+            // Check custom templates
             if (templateKey.startsWith('custom_')) {
                 const customKey = templateKey.replace('custom_', '');
                 const custom = getCustomTemplates();
                 if (!custom[customKey]) return;
-                const template = custom[customKey];
-                document.getElementById('investigationTitle').value = template.title;
+                const tmpl = custom[customKey];
+                document.getElementById('investigationTitle').value = tmpl.title;
                 const container = document.getElementById('investigationQuestions');
                 container.innerHTML = '';
-                template.questions.forEach((q, index) => {
+                tmpl.questions.forEach((q, index) => {
                     const row = document.createElement('div');
                     row.className = 'inv-question-row';
                     row.style.cssText = 'display: flex; gap: 8px; margin-bottom: 8px;';
@@ -6846,7 +6896,7 @@ console.log(\`Storage: \${data.total_size_mb} MB / \${data.tier_limit_gb} GB (\$
                 return;
             }
 
-            if (!templateKey || !INVESTIGATION_TEMPLATES[templateKey]) return;
+            if (!INVESTIGATION_TEMPLATES[templateKey]) return;
 
             const template = INVESTIGATION_TEMPLATES[templateKey];
 
