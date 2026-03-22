@@ -7033,6 +7033,9 @@ console.log(\`Storage: \${data.total_size_mb} MB / \${data.tier_limit_gb} GB (\$
         };
 
         function renderInvestigationResults(inv, container) {
+            // Store current investigation for export functions
+            window._currentInvestigation = inv;
+
             const totalCitations = inv.metadata ? inv.metadata.total_citations : 0;
             const modelUsed = inv.metadata ? inv.metadata.model_used : '';
             const createdAt = inv.created_at ? new Date(inv.created_at).toLocaleString('es-ES') : '';
@@ -7091,6 +7094,20 @@ console.log(\`Storage: \${data.total_size_mb} MB / \${data.tier_limit_gb} GB (\$
                     <span>Preguntas: <strong style="color: #374151;">${(inv.sections || []).length}</strong></span>
                     <span>Citas totales: <strong style="color: #374151;">${totalCitations}</strong></span>
                     <span>Generado: <strong style="color: #374151;">${createdAt}</strong></span>
+                </div>
+                <div style="display: flex; gap: 8px; margin-top: 16px; padding: 12px; background: #F9FAFB; border-radius: 8px; border-top: 1px solid #E5E7EB;">
+                    <button onclick="exportInvPDF('${inv.id}')" class="btn-secondary"
+                        style="padding: 8px 16px; display: flex; align-items: center; gap: 6px;">
+                        📄 PDF
+                    </button>
+                    <button onclick="exportInvTXT('${inv.id}')" class="btn-secondary"
+                        style="padding: 8px 16px; display: flex; align-items: center; gap: 6px;">
+                        📝 TXT
+                    </button>
+                    <button onclick="copyInvToClipboard('${inv.id}')" class="btn-secondary"
+                        style="padding: 8px 16px; display: flex; align-items: center; gap: 6px;">
+                        📋 Copiar
+                    </button>
                 </div>
             `;
             container.style.display = 'block';
@@ -7157,12 +7174,26 @@ console.log(\`Storage: \${data.total_size_mb} MB / \${data.tier_limit_gb} GB (\$
                                     <span>📄 ${citCount} citas</span>
                                     ${modelUsed ? `<span>🤖 ${modelUsed}</span>` : ''}
                                 </div>
-                                <div style="display: flex; gap: 8px;">
+                                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                                     <button onclick="viewInvestigation('${inv.id}')"
                                         style="flex: 1; padding: 7px 12px; background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE;
                                                border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s;"
                                         onmouseover="this.style.background='#DBEAFE'" onmouseout="this.style.background='#EFF6FF'">
                                         Ver resultados
+                                    </button>
+                                    <button onclick="exportInvPDF('${inv.id}')"
+                                        style="padding: 7px 12px; background: #F0FDF4; color: #15803D; border: 1px solid #BBF7D0;
+                                               border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s;"
+                                        title="Exportar como PDF"
+                                        onmouseover="this.style.background='#DCFCE7'" onmouseout="this.style.background='#F0FDF4'">
+                                        📄 PDF
+                                    </button>
+                                    <button onclick="exportInvTXT('${inv.id}')"
+                                        style="padding: 7px 12px; background: #FEFCE8; color: #854D0E; border: 1px solid #FEF08A;
+                                               border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s;"
+                                        title="Exportar como TXT (requiere cargar primero)"
+                                        onmouseover="this.style.background='#FEF9C3'" onmouseout="this.style.background='#FEFCE8'">
+                                        📝 TXT
                                     </button>
                                     <button onclick="deleteInvestigation('${inv.id}')"
                                         style="padding: 7px 12px; background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA;
@@ -7215,6 +7246,90 @@ console.log(\`Storage: \${data.total_size_mb} MB / \${data.tier_limit_gb} GB (\$
                 .catch(err => {
                     showNotification(`Error: ${err.message}`, 'error');
                 });
+        };
+
+        // ============================================
+        // INVESTIGATION EXPORT FUNCTIONS
+        // ============================================
+
+        window.exportInvPDF = async function(id) {
+            try {
+                showNotification('Generando PDF...', 'info');
+                const response = await fetch(`/investigations/${id}/export-pdf`, { method: 'POST' });
+                if (!response.ok) {
+                    const err = await response.json().catch(() => ({}));
+                    throw new Error(err.error || 'Error generando PDF');
+                }
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `investigacion_${id.substring(0, 8)}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showNotification('PDF descargado', 'success');
+            } catch (e) {
+                showNotification(`Error generando PDF: ${e.message}`, 'error');
+            }
+        };
+
+        window.exportInvTXT = function(id) {
+            const inv = window._currentInvestigation;
+            if (!inv || inv.id !== id) {
+                showNotification('Carga la investigacion primero (Ver resultados)', 'error');
+                return;
+            }
+
+            let text = `INVESTIGACION: ${inv.title}\n`;
+            text += `Fecha: ${inv.created_at || ''}\n`;
+            const model = inv.metadata ? inv.metadata.model_used : '';
+            if (model) text += `Modelo: ${model}\n`;
+            text += '\n';
+            text += `RESUMEN EJECUTIVO\n${'='.repeat(40)}\n${inv.summary || ''}\n\n`;
+
+            (inv.sections || []).forEach((s, i) => {
+                text += `${i + 1}. ${s.question}\n${'-'.repeat(40)}\n${s.answer || ''}\n\n`;
+                if (s.citations && s.citations.length > 0) {
+                    text += `Fuentes:\n`;
+                    s.citations.forEach(c => {
+                        const snippet = (c.text || '').substring(0, 120);
+                        text += `  - ${c.title || 'Documento'}${snippet ? ': ' + snippet + '...' : ''}\n`;
+                    });
+                    text += '\n';
+                }
+            });
+
+            text += `\nGenerado con Gemini File Search Manager by Webcomunica`;
+
+            const blob = new Blob([text], { type: 'text/plain; charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `investigacion_${id.substring(0, 8)}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showNotification('TXT descargado', 'success');
+        };
+
+        window.copyInvToClipboard = function(id) {
+            const inv = window._currentInvestigation;
+            if (!inv || inv.id !== id) {
+                showNotification('Carga la investigacion primero (Ver resultados)', 'error');
+                return;
+            }
+
+            let text = `${inv.title}\n\nRESUMEN: ${inv.summary || ''}\n\n`;
+            (inv.sections || []).forEach((s, i) => {
+                text += `${i + 1}. ${s.question}\n${s.answer || ''}\n\n`;
+            });
+
+            navigator.clipboard.writeText(text)
+                .then(() => showNotification('Copiado al portapapeles', 'success'))
+                .catch(() => showNotification('Error al copiar', 'error'));
         };
 
         // Show notification

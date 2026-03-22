@@ -2207,6 +2207,260 @@ def delete_investigation(investigation_id):
         return jsonify({'error': f'Error deleting investigation: {str(e)}'}), 500
 
 
+@app.route('/investigations/<investigation_id>/export-pdf', methods=['POST'])
+def export_investigation_pdf(investigation_id):
+    """Export an investigation as a PDF report.
+
+    Generates a formatted PDF with header/footer images, executive summary,
+    numbered sections with questions/answers/citations.
+
+    Returns:
+        PDF file as attachment
+    """
+    import io
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import cm
+    from reportlab.lib.colors import HexColor
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
+    from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
+                                    HRFlowable, Image, Table, TableStyle)
+    from reportlab.lib import colors
+    from flask import send_file
+    import re
+
+    try:
+        investigations = load_state_value('investigations', [])
+        inv = next((i for i in investigations if i.get('id') == investigation_id), None)
+        if not inv:
+            return jsonify({'error': 'Investigation not found'}), 404
+
+        # Corporate color palette
+        AZUL = HexColor('#2B9FD1')
+        AZUL_OSCURO = HexColor('#1A7BA8')
+        GRIS_TEXTO = HexColor('#374151')
+        GRIS_CLARO = HexColor('#6B7280')
+        AZUL_FONDO = HexColor('#EFF6FF')
+        AZUL_BORDE = HexColor('#BFDBFE')
+        NEGRO = HexColor('#111827')
+
+        # Header/footer image paths
+        HEADER_IMG = os.path.expanduser('~/.claude/assets/webcomunica/cabecera.png')
+        FOOTER_IMG = os.path.expanduser('~/.claude/assets/webcomunica/pie.png')
+
+        PAGE_W, PAGE_H = A4
+        MARGIN = 2 * cm
+
+        buf = io.BytesIO()
+
+        # Helper to strip markdown/HTML for plain text in PDF
+        def strip_markup(text):
+            if not text:
+                return ''
+            # Remove markdown headers
+            text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+            # Remove bold/italic
+            text = re.sub(r'\*{1,3}(.*?)\*{1,3}', r'\1', text)
+            text = re.sub(r'_{1,3}(.*?)_{1,3}', r'\1', text)
+            # Remove inline code
+            text = re.sub(r'`([^`]+)`', r'\1', text)
+            # Remove links [text](url)
+            text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
+            # Remove HTML tags
+            text = re.sub(r'<[^>]+>', '', text)
+            # Escape reportlab special chars
+            text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            return text.strip()
+
+        def make_doc():
+            """Build the platypus story (list of flowables)."""
+            styles = getSampleStyleSheet()
+
+            style_title = ParagraphStyle(
+                'InvTitle',
+                fontName='Helvetica-Bold',
+                fontSize=18,
+                textColor=AZUL_OSCURO,
+                spaceAfter=6,
+                leading=22,
+            )
+            style_meta = ParagraphStyle(
+                'InvMeta',
+                fontName='Helvetica',
+                fontSize=9,
+                textColor=GRIS_CLARO,
+                spaceAfter=4,
+            )
+            style_section_label = ParagraphStyle(
+                'SectionLabel',
+                fontName='Helvetica-Bold',
+                fontSize=9,
+                textColor=AZUL,
+                spaceBefore=4,
+                spaceAfter=2,
+                textTransform='uppercase',
+            )
+            style_question = ParagraphStyle(
+                'Question',
+                fontName='Helvetica-Bold',
+                fontSize=11,
+                textColor=NEGRO,
+                spaceBefore=4,
+                spaceAfter=6,
+            )
+            style_answer = ParagraphStyle(
+                'Answer',
+                fontName='Helvetica',
+                fontSize=10,
+                textColor=GRIS_TEXTO,
+                leading=15,
+                spaceAfter=8,
+                alignment=TA_JUSTIFY,
+            )
+            style_citation = ParagraphStyle(
+                'Citation',
+                fontName='Helvetica-Oblique',
+                fontSize=8,
+                textColor=AZUL_OSCURO,
+                leftIndent=12,
+                spaceAfter=2,
+            )
+            style_summary = ParagraphStyle(
+                'Summary',
+                fontName='Helvetica',
+                fontSize=10,
+                textColor=HexColor('#1E3A5F'),
+                leading=15,
+                spaceAfter=4,
+                alignment=TA_JUSTIFY,
+            )
+            style_footer = ParagraphStyle(
+                'Footer',
+                fontName='Helvetica-Oblique',
+                fontSize=8,
+                textColor=GRIS_CLARO,
+                alignment=TA_CENTER,
+            )
+
+            story = []
+
+            # --- Header image ---
+            if os.path.exists(HEADER_IMG):
+                img = Image(HEADER_IMG, width=PAGE_W - 2 * MARGIN, height=2.2 * cm)
+                story.append(img)
+                story.append(Spacer(1, 0.4 * cm))
+
+            # --- Title block ---
+            title_text = strip_markup(inv.get('title', 'Investigacion'))
+            story.append(Paragraph(title_text, style_title))
+
+            # Metadata line
+            created_at = inv.get('created_at', '')
+            model_used = inv.get('metadata', {}).get('model_used', '')
+            total_questions = inv.get('metadata', {}).get('total_questions', len(inv.get('sections', [])))
+            total_citations = inv.get('metadata', {}).get('total_citations', 0)
+            meta_parts = []
+            if created_at:
+                meta_parts.append(f"Fecha: {created_at[:19].replace('T', ' ')}")
+            if model_used:
+                meta_parts.append(f"Modelo: {model_used}")
+            meta_parts.append(f"Preguntas: {total_questions}")
+            meta_parts.append(f"Citas: {total_citations}")
+            story.append(Paragraph(' &nbsp;|&nbsp; '.join(meta_parts), style_meta))
+            story.append(HRFlowable(width='100%', thickness=1.5, color=AZUL, spaceAfter=10))
+
+            # --- Executive summary box ---
+            summary_text = strip_markup(inv.get('summary', ''))
+            if summary_text:
+                story.append(Paragraph('Resumen Ejecutivo', style_section_label))
+                # Simulate the blue box with a Table of one cell
+                summary_table = Table(
+                    [[Paragraph(summary_text, style_summary)]],
+                    colWidths=[PAGE_W - 2 * MARGIN],
+                )
+                summary_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, -1), AZUL_FONDO),
+                    ('BOX', (0, 0), (-1, -1), 1.5, AZUL_BORDE),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 12),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+                    ('TOPPADDING', (0, 0), (-1, -1), 10),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+                    ('ROUNDEDCORNERS', [6, 6, 6, 6]),
+                ]))
+                story.append(summary_table)
+                story.append(Spacer(1, 0.5 * cm))
+
+            # --- Sections ---
+            story.append(Paragraph('Preguntas y Respuestas', style_section_label))
+            story.append(HRFlowable(width='100%', thickness=0.5, color=HexColor('#E5E7EB'), spaceAfter=8))
+
+            for idx, section in enumerate(inv.get('sections', []), start=1):
+                question = strip_markup(section.get('question', ''))
+                answer = strip_markup(section.get('answer', ''))
+                citations = section.get('citations', [])
+
+                story.append(Paragraph(f"{idx}. {question}", style_question))
+
+                if answer:
+                    # Split by newlines to preserve paragraph breaks
+                    for para in answer.split('\n'):
+                        para = para.strip()
+                        if para:
+                            story.append(Paragraph(para, style_answer))
+
+                if citations:
+                    story.append(Paragraph(
+                        '<font color="#6B7280"><b>Fuentes:</b></font>', style_citation))
+                    for c in citations:
+                        cite_title = strip_markup(c.get('title', 'Documento'))
+                        cite_text = strip_markup((c.get('text', '') or '')[:200])
+                        if cite_text:
+                            story.append(Paragraph(
+                                f'&bull; <b>{cite_title}</b>: {cite_text}...', style_citation))
+                        else:
+                            story.append(Paragraph(f'&bull; <b>{cite_title}</b>', style_citation))
+
+                story.append(HRFlowable(
+                    width='100%', thickness=0.5, color=HexColor('#F3F4F6'), spaceAfter=6))
+
+            # --- Footer image ---
+            story.append(Spacer(1, 0.6 * cm))
+            if os.path.exists(FOOTER_IMG):
+                story.append(Image(FOOTER_IMG, width=PAGE_W - 2 * MARGIN, height=1.5 * cm))
+            else:
+                story.append(HRFlowable(width='100%', thickness=1, color=AZUL, spaceBefore=4))
+                story.append(Spacer(1, 0.3 * cm))
+                story.append(Paragraph(
+                    'Generado con Gemini File Search Manager by Webcomunica',
+                    style_footer))
+
+            return story
+
+        doc = SimpleDocTemplate(
+            buf,
+            pagesize=A4,
+            leftMargin=MARGIN,
+            rightMargin=MARGIN,
+            topMargin=MARGIN,
+            bottomMargin=MARGIN,
+        )
+        doc.build(make_doc())
+        buf.seek(0)
+
+        short_id = investigation_id[:8]
+        logger.info(f"PDF exported for investigation {investigation_id}")
+        return send_file(
+            buf,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f'investigacion_{short_id}.pdf',
+        )
+
+    except Exception as e:
+        logger.error(f"Error exporting PDF for investigation {investigation_id}: {str(e)}")
+        return jsonify({'error': f'Error generating PDF: {str(e)}'}), 500
+
+
 # ============================================
 # APPLICATION ENTRY POINT - Punto de entrada de la aplicación
 # Puerto configurado en 5001
