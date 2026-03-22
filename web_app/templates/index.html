@@ -965,6 +965,23 @@
                                 <div style="font-size: 12px; font-weight: 600; color: #92400E;">💰 Coste estimado de indexacion</div>
                                 <div id="costEstimateDetails" style="font-size: 12px; color: #78350F; margin-top: 4px;"></div>
                             </div>
+
+                            <!-- Auto-enrich toggle + batch enrich button -->
+                            <div style="margin-top: 12px; padding: 12px; background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); border-radius: 8px; border: 1px solid #93C5FD;">
+                                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 8px;">
+                                    <input type="checkbox" id="autoEnrichToggle" style="width: 18px; height: 18px; cursor: pointer; accent-color: #2563EB;">
+                                    <span style="font-size: 13px; font-weight: 600; color: #1E40AF;">Auto-enriquecer metadata con IA</span>
+                                </label>
+                                <p style="margin: 0 0 8px 0; font-size: 12px; color: #3B82F6;">
+                                    Antes de subir cada archivo, Gemini extraera automaticamente metadata estructurada (categoria, dispositivo, marca, estado, sentimiento...).
+                                </p>
+                                <button id="enrichAllBtn" class="btn-secondary"
+                                    style="width: 100%; padding: 9px; font-size: 13px; font-weight: 600; background: #2563EB; color: white; border: none; border-radius: 6px; cursor: pointer; display: none;">
+                                    Enriquecer todo con IA
+                                </button>
+                                <div id="enrichAllStatus" style="margin-top: 6px; font-size: 12px; display: none;"></div>
+                            </div>
+
                             <button id="uploadAllFiles" class="btn btn-primary" style="width: 100%; margin-top: 12px;" data-i18n="upload.docs.uploadAll">
                                 📤 Subir Todos los Archivos
                             </button>
@@ -1083,6 +1100,32 @@
                         <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
                     </select>
                     <p style="margin: 4px 0 0 0; font-size: 11px; color: #9CA3AF;">Gemini 3 Flash recomendado para RAG</p>
+                </div>
+
+                <!-- Retrieval Controls -->
+                <div class="card" style="height: fit-content;">
+                    <h3 style="font-size: 14px; margin-bottom: 8px; color: #111827;">🔎 Resultados</h3>
+                    <input type="number" id="topKInput" min="1" max="100" value="10"
+                        style="width: 100%; padding: 8px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 12px;">
+                    <p style="margin: 4px 0 0 0; font-size: 11px; color: #9CA3AF;">Chunks a recuperar (1-100)</p>
+                </div>
+
+                <!-- Generation Controls -->
+                <div class="card" style="height: fit-content;">
+                    <h3 style="font-size: 14px; margin-bottom: 8px; color: #111827;">⚙️ Generacion</h3>
+                    <label style="display: block; margin-bottom: 4px; font-size: 12px; color: #374151;">Nivel de razonamiento</label>
+                    <select id="thinkingLevel" style="width: 100%; padding: 8px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 12px; margin-bottom: 10px;">
+                        <option value="">Auto</option>
+                        <option value="low">Low (rapido)</option>
+                        <option value="high">High (profundo)</option>
+                    </select>
+                    <label style="display: block; margin-bottom: 4px; font-size: 12px; color: #374151;">Resolucion de medios</label>
+                    <select id="mediaResolution" style="width: 100%; padding: 8px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 12px;">
+                        <option value="">Auto</option>
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                    </select>
                 </div>
 
                 <!-- Structured Output -->
@@ -1579,6 +1622,34 @@
                 'docs.quickStart.title': '🚀 Guía de Inicio Rápido',
                 'docs.quickStart.subtitle': 'Aprende a usar Gemini File Search Manager en 3 simples pasos',
 
+                // Chat - Model & Structured Output
+                'chat.model.title': 'Modelo de Chat',
+                'chat.model.recommended': 'Gemini 3 Flash recomendado para RAG',
+                'chat.structuredOutput.title': 'Structured Output',
+                'chat.structuredOutput.enableJson': 'Respuesta JSON',
+                'chat.structuredOutput.customSchema': '-- Esquema personalizado --',
+                'chat.structuredOutput.summary': 'Resumen estructurado',
+                'chat.structuredOutput.table': 'Tabla de datos',
+                'chat.structuredOutput.qa': 'Preguntas y respuestas',
+                'chat.structuredOutput.extraction': 'Extraccion de datos',
+
+                // Upload - URL import
+                'upload.url.title': 'Importar desde URL',
+                'upload.url.description': 'Descarga e importa un archivo desde una URL publica directamente al store',
+                'upload.url.placeholder': 'https://example.com/document.pdf',
+                'upload.url.importBtn': 'Importar',
+                'upload.url.downloading': 'Descargando e importando... (puede tardar hasta 2 min)',
+
+                // Upload - Cost estimator
+                'upload.cost.title': 'Coste estimado de indexacion',
+                'upload.cost.note': 'Estimacion aproximada (~250K tok/MB para texto). PDFs con imagenes pueden variar.',
+
+                // Settings - Storage
+                'settings.storage.title': 'Uso de Almacenamiento',
+                'settings.storage.tier': 'Tier actual:',
+                'settings.storage.used': 'usado',
+                'settings.storage.of': 'de',
+
                 // Notifications
                 'notification.success': '✅',
                 'notification.error': '❌',
@@ -1817,6 +1888,34 @@
                 'docs.explain.getOperation': 'Checks the status of an asynchronous operation (upload, import). When done=true, check error or response.',
                 'docs.quickStart.title': '🚀 Quick Start Guide',
                 'docs.quickStart.subtitle': 'Learn how to use Gemini File Search Manager in 3 simple steps',
+
+                // Chat - Model & Structured Output
+                'chat.model.title': 'Chat Model',
+                'chat.model.recommended': 'Gemini 3 Flash recommended for RAG',
+                'chat.structuredOutput.title': 'Structured Output',
+                'chat.structuredOutput.enableJson': 'JSON Response',
+                'chat.structuredOutput.customSchema': '-- Custom schema --',
+                'chat.structuredOutput.summary': 'Structured summary',
+                'chat.structuredOutput.table': 'Data table',
+                'chat.structuredOutput.qa': 'Questions and answers',
+                'chat.structuredOutput.extraction': 'Data extraction',
+
+                // Upload - URL import
+                'upload.url.title': 'Import from URL',
+                'upload.url.description': 'Download and import a file from a public URL directly to the store',
+                'upload.url.placeholder': 'https://example.com/document.pdf',
+                'upload.url.importBtn': 'Import',
+                'upload.url.downloading': 'Downloading and importing... (may take up to 2 min)',
+
+                // Upload - Cost estimator
+                'upload.cost.title': 'Estimated indexing cost',
+                'upload.cost.note': 'Rough estimate (~250K tok/MB for text). PDFs with images may vary.',
+
+                // Settings - Storage
+                'settings.storage.title': 'Storage Usage',
+                'settings.storage.tier': 'Current tier:',
+                'settings.storage.used': 'used',
+                'settings.storage.of': 'of',
 
                 // Notifications
                 'notification.success': '✅',
@@ -2496,6 +2595,100 @@
             }
         });
 
+        // Auto-enrich toggle: show/hide "Enriquecer todo" button
+        document.getElementById('autoEnrichToggle')?.addEventListener('change', function() {
+            const enrichAllBtn = document.getElementById('enrichAllBtn');
+            if (enrichAllBtn) {
+                enrichAllBtn.style.display = this.checked ? 'block' : 'none';
+            }
+        });
+
+        // Enrich a single file item using /auto-enrich and store result in fileItem.metadata
+        async function enrichSingleFile(fileItem) {
+            const formData = new FormData();
+            formData.append('file', fileItem.file);
+            const model = localStorage.getItem('metadata_model') || 'gemini-3-flash-preview';
+            formData.append('model', model);
+
+            const response = await fetch('/auto-enrich', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Error al enriquecer documento');
+            }
+
+            // Merge enriched metadata into fileItem (flatten arrays/booleans to strings for Gemini API)
+            const merged = {};
+            for (const [key, value] of Object.entries(data.metadata)) {
+                if (Array.isArray(value)) {
+                    merged[key] = value.join(', ');
+                } else if (typeof value === 'boolean') {
+                    merged[key] = value ? 'si' : 'no';
+                } else if (value !== null && value !== undefined && value !== '') {
+                    merged[key] = value;
+                }
+            }
+
+            fileItem.metadata = { ...fileItem.metadata, ...merged };
+            return merged;
+        }
+
+        // "Enriquecer todo" button: enrich all files in queue without uploading
+        document.getElementById('enrichAllBtn')?.addEventListener('click', async () => {
+            if (filesQueue.length === 0) {
+                showNotification('No hay archivos en la cola', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('enrichAllBtn');
+            const statusEl = document.getElementById('enrichAllStatus');
+            btn.disabled = true;
+            statusEl.style.display = 'block';
+            const total = filesQueue.length;
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            for (let i = 0; i < filesQueue.length; i++) {
+                const fileItem = filesQueue[i];
+                const fileStatusEl = document.getElementById(`file-status-${fileItem.id}`);
+
+                statusEl.style.color = '#2563EB';
+                statusEl.textContent = `Analizando ${i + 1}/${total}: ${fileItem.file.name}...`;
+                if (fileStatusEl) {
+                    fileStatusEl.innerHTML = '<span style="color: #2563EB;">Analizando...</span>';
+                }
+
+                try {
+                    const enriched = await enrichSingleFile(fileItem);
+                    successCount++;
+                    const count = Object.keys(enriched).length;
+                    if (fileStatusEl) {
+                        fileStatusEl.innerHTML = `<span style="color: #7C3AED;">✨ ${count} campos IA</span>`;
+                    }
+                } catch (err) {
+                    console.error(`Error enriching ${fileItem.file.name}:`, err);
+                    errorCount++;
+                    if (fileStatusEl) {
+                        fileStatusEl.innerHTML = `<span style="color: #DC2626;">❌ Error IA</span>`;
+                    }
+                }
+            }
+
+            btn.disabled = false;
+            if (errorCount === 0) {
+                statusEl.style.color = '#059669';
+                statusEl.textContent = `✅ ${successCount} archivo(s) enriquecidos`;
+            } else {
+                statusEl.style.color = '#D97706';
+                statusEl.textContent = `${successCount} OK, ${errorCount} con error`;
+            }
+            setTimeout(() => { statusEl.style.display = 'none'; }, 4000);
+        });
+
         // Upload all files with per-file progress
         document.getElementById('uploadAllFiles')?.addEventListener('click', async () => {
             if (filesQueue.length === 0) {
@@ -2510,6 +2703,7 @@
                 return;
             }
 
+            const autoEnrich = document.getElementById('autoEnrichToggle')?.checked || false;
             const uploadBtn = document.getElementById('uploadAllFiles');
             uploadBtn.disabled = true;
 
@@ -2523,6 +2717,19 @@
             for (let i = 0; i < filesQueue.length; i++) {
                 const fileItem = filesQueue[i];
                 const statusEl = document.getElementById(`file-status-${fileItem.id}`);
+
+                // Auto-enrich step (runs before upload when toggle is active)
+                if (autoEnrich && !fileItem.enriched) {
+                    if (statusEl) {
+                        statusEl.innerHTML = '<span style="color: #7C3AED;">✨ Analizando con IA...</span>';
+                    }
+                    try {
+                        await enrichSingleFile(fileItem);
+                        fileItem.enriched = true;
+                    } catch (enrichErr) {
+                        console.warn(`Auto-enrich failed for ${fileItem.file.name}, uploading without extra metadata:`, enrichErr);
+                    }
+                }
 
                 // Mark as uploading
                 if (statusEl) {
@@ -3087,6 +3294,11 @@
             chatMessages.scrollTop = chatMessages.scrollHeight;
 
             try {
+                const topKRaw = document.getElementById('topKInput')?.value;
+                const topKValue = topKRaw ? parseInt(topKRaw) : null;
+                const thinkingLevelValue = document.getElementById('thinkingLevel')?.value || null;
+                const mediaResolutionValue = document.getElementById('mediaResolution')?.value || null;
+
                 const response = await fetch('/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -3094,6 +3306,9 @@
                         message,
                         model: document.getElementById('chatModelSelector')?.value || 'gemini-3-flash-preview',
                         metadata_filters: metadataFilters,
+                        top_k: topKValue,
+                        thinking_level: thinkingLevelValue || undefined,
+                        media_resolution: mediaResolutionValue || undefined,
                         ...getStructuredOutputConfig()
                     })
                 });
@@ -4512,6 +4727,29 @@ async function checkOperation() {
 checkOperation();`;
                     explainText = t('docs.explain.getOperation');
                     break;
+
+                case 'import-url':
+                    code = `// Import file from URL
+const response = await fetch('http://localhost:5001/import-url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+        url: '${params.importUrl || 'https://example.com/document.pdf'}',
+        store_name: '${params.chatStore || ''}'
+    })
+});
+const data = await response.json();
+console.log(data.success ? \`Imported: \${data.filename}\` : \`Error: \${data.error}\`);`;
+                    explainText = 'Downloads a file from a public URL and imports it into the File Search Store.';
+                    break;
+
+                case 'storage-usage':
+                    code = `// Get storage usage
+const response = await fetch('http://localhost:5001/storage-usage');
+const data = await response.json();
+console.log(\`Storage: \${data.total_size_mb} MB / \${data.tier_limit_gb} GB (\${data.usage_percentage}%)\`);`;
+                    explainText = 'Returns total storage usage across all stores.';
+                    break;
             }
 
             return { code, explainText };
@@ -4812,6 +5050,27 @@ checkOperation();`;
 }`;
                     explainText = t('docs.explain.getOperation');
                     break;
+
+                case 'import-url':
+                    code = `// n8n HTTP Request node - Import from URL
+{
+  "method": "POST",
+  "url": "http://localhost:5001/import-url",
+  "headers": { "Content-Type": "application/json" },
+  "body": {
+    "url": "${params.importUrl || 'https://example.com/document.pdf'}",
+    "store_name": "${params.chatStore || ''}"
+  }
+}`;
+                    break;
+
+                case 'storage-usage':
+                    code = `// n8n HTTP Request node - Get Storage Usage
+{
+  "method": "GET",
+  "url": "http://localhost:5001/storage-usage"
+}`;
+                    break;
             }
 
             return { code, explainText };
@@ -5004,6 +5263,48 @@ checkOperation();`;
   ]
 }`;
                     explainText = t('docs.explain.getOperation');
+                    break;
+
+                case 'import-url':
+                    code = `{
+  "name": "Import File from URL",
+  "flow": [
+    {
+      "id": 1,
+      "module": "http:ActionSendData",
+      "version": 3,
+      "mapper": {
+        "url": "http://localhost:5001/import-url",
+        "method": "post",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "bodyType": "raw",
+        "rawBody": "{\\"url\\": \\"${params.importUrl || 'https://example.com/document.pdf'}\\", \\"store_name\\": \\"${params.chatStore || ''}\\"}"
+      }
+    }
+  ]
+}`;
+                    break;
+
+                case 'storage-usage':
+                    code = `{
+  "name": "Get Storage Usage",
+  "flow": [
+    {
+      "id": 1,
+      "module": "http:ActionSendData",
+      "version": 3,
+      "mapper": {
+        "url": "http://localhost:5001/storage-usage",
+        "method": "get"
+      }
+    }
+  ]
+}`;
                     break;
             }
 
@@ -5260,6 +5561,66 @@ checkOperation();`;
   ]
 }`;
                     explainText = t('docs.explain.getOperation');
+                    break;
+
+                case 'import-url':
+                    code = `{
+  "info": {
+    "name": "Gemini File Search - Import from URL",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Import File from URL",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:5001/import-url",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5001",
+          "path": ["import-url"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\\n  \\"url\\": \\"${params.importUrl || 'https://example.com/document.pdf'}\\",\\n  \\"store_name\\": \\"${params.chatStore || ''}\\"\\n}"
+        }
+      }
+    }
+  ]
+}`;
+                    explainText = 'Downloads a file from a public URL and imports it into the File Search Store.';
+                    break;
+
+                case 'storage-usage':
+                    code = `{
+  "info": {
+    "name": "Gemini File Search - Storage Usage",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get Storage Usage",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:5001/storage-usage",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5001",
+          "path": ["storage-usage"]
+        }
+      }
+    }
+  ]
+}`;
+                    explainText = 'Returns total storage usage across all stores.';
                     break;
             }
 

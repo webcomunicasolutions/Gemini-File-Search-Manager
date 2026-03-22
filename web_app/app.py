@@ -222,6 +222,42 @@ def save_state_value(key, value):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+
+# ============================================
+# METADATA HELPER - Extracción y fusión de metadatos
+# ============================================
+
+def extract_document_metadata(doc, uploaded_files):
+    """Extract and merge Gemini + local metadata for a document.
+
+    Gemini metadata is fetched from the API response. Local metadata
+    from uploaded_files takes precedence (allows editing without re-upload).
+
+    Args:
+        doc: Document resource object from Gemini API
+        uploaded_files: List of locally tracked file dicts
+
+    Returns:
+        dict: Merged metadata with local values overriding Gemini values
+    """
+    custom_metadata = {}
+    if hasattr(doc, 'custom_metadata') and doc.custom_metadata:
+        for metadata in doc.custom_metadata:
+            key = getattr(metadata, 'key', '')
+            if hasattr(metadata, 'string_value'):
+                custom_metadata[key] = getattr(metadata, 'string_value', '')
+            elif hasattr(metadata, 'numeric_value'):
+                custom_metadata[key] = getattr(metadata, 'numeric_value', 0)
+
+    # Merge with local metadata - local overrides Gemini
+    for file_info in uploaded_files:
+        if file_info.get('document_id') == doc.name:
+            local_metadata = file_info.get('custom_metadata', {})
+            custom_metadata.update(local_metadata)
+            break
+
+    return custom_metadata
+
 def get_mime_type(filename):
     """
     Detect MIME type from file extension with fallback.
@@ -706,6 +742,9 @@ def chat():
     system_prompt = data.get('system_prompt', '')
     structured_output = data.get('structured_output', False)
     response_schema = data.get('response_schema', None)
+    top_k = data.get('top_k', None)  # Number of chunks File Search returns
+    thinking_level = data.get('thinking_level', None)  # "high" or "low"
+    media_resolution = data.get('media_resolution', None)  # "low", "medium", "high"
 
     # Model selection with whitelist
     ALLOWED_CHAT_MODELS = [
@@ -753,9 +792,14 @@ def chat():
             logger.info(f"Using metadata filters: {metadata_filters}")
 
         # Build file search config
-        file_search_config = types.FileSearch(
-            file_search_store_names=[file_search_store.name]
-        )
+        file_search_kwargs = {'file_search_store_names': [file_search_store.name]}
+        if top_k is not None:
+            try:
+                file_search_kwargs['top_k'] = int(top_k)
+                logger.info(f"Using top_k={top_k} for File Search")
+            except (ValueError, TypeError):
+                logger.warning(f"Invalid top_k value: {top_k}, ignoring")
+        file_search_config = types.FileSearch(**file_search_kwargs)
 
         # Add metadata filters if provided - AIP-160 string format
         if metadata_filters and len(metadata_filters) > 0:
@@ -797,6 +841,16 @@ def chat():
             gen_config['response_mime_type'] = 'application/json'
             gen_config['response_schema'] = response_schema
             logger.info("Structured output enabled with schema")
+
+        # Add thinking_level if provided (Gemini 3+)
+        if thinking_level in ('low', 'high'):
+            gen_config['thinking_config'] = types.ThinkingConfig(thinking_budget=-1 if thinking_level == 'high' else 0)
+            logger.info(f"Thinking level set to: {thinking_level}")
+
+        # Add media_resolution if provided
+        if media_resolution in ('low', 'medium', 'high'):
+            gen_config['media_resolution'] = media_resolution
+            logger.info(f"Media resolution set to: {media_resolution}")
 
         response = client.models.generate_content(
             model=model,
@@ -942,22 +996,7 @@ def list_stores():
             documents = []
             try:
                 for doc in client.file_search_stores.documents.list(parent=store.name):
-                    # Extract custom metadata from Gemini
-                    custom_metadata = {}
-                    if hasattr(doc, 'custom_metadata') and doc.custom_metadata:
-                        for metadata in doc.custom_metadata:
-                            key = getattr(metadata, 'key', '')
-                            if hasattr(metadata, 'string_value'):
-                                custom_metadata[key] = getattr(metadata, 'string_value', '')
-                            elif hasattr(metadata, 'numeric_value'):
-                                custom_metadata[key] = getattr(metadata, 'numeric_value', 0)
-
-                    # Merge with local metadata edits (local metadata takes precedence)
-                    for file_info in uploaded_files:
-                        if file_info.get('document_id') == doc.name:
-                            local_metadata = file_info.get('custom_metadata', {})
-                            custom_metadata.update(local_metadata)  # Local overrides Gemini
-                            break
+                    custom_metadata = extract_document_metadata(doc, uploaded_files)
 
                     documents.append({
                         'name': doc.name,
@@ -1620,6 +1659,289 @@ Remember:
         return jsonify({'error': f'Error analyzing document: {str(e)}'}), 500
 
 # ============================================
+# DOCUMENT QUERY - Búsqueda semántica en documento específico
+# ============================================
+
+@app.route('/document-query', methods=['POST'])
+def document_query():
+    """Perform semantic search on a specific document WITHOUT full generation.
+
+    Uses the documents.query API to retrieve relevant chunks directly.
+    Useful for retrieval-only use cases or inspecting what chunks match a query.
+
+    Request body:
+        document_name (str): Full document resource name
+            e.g. "fileSearchStores/.../documents/..."
+        query (str): The semantic search query
+        results_count (int): Number of chunks to return, max 100 (default 10)
+        metadata_filters (list): Optional AIP-160 metadata filters
+
+    Returns:
+        JSON with list of relevant chunks and their content
+    """
+    try:
+        data = request.json
+        document_name = data.get('document_name', '').strip()
+        query = data.get('query', '').strip()
+        results_count = data.get('results_count', 10)
+        metadata_filters = data.get('metadata_filters', [])
+
+        if not document_name:
+            return jsonify({'error': 'document_name is required'}), 400
+        if not query:
+            return jsonify({'error': 'query is required'}), 400
+
+        # Clamp results_count to valid range
+        try:
+            results_count = max(1, min(100, int(results_count)))
+        except (ValueError, TypeError):
+            results_count = 10
+
+        logger.info(f"Document query on {document_name}: '{query}' (results_count={results_count})")
+
+        # Build query config
+        query_config = {'results_count': results_count}
+
+        # Add metadata filters if provided (AIP-160 format)
+        if metadata_filters and len(metadata_filters) > 0:
+            filter_parts = []
+            for filter_item in metadata_filters:
+                key = filter_item.get('key', '')
+                value = filter_item.get('value', '')
+                if not key or not value:
+                    continue
+                try:
+                    float(value)
+                    filter_parts.append(f'{key}={value}')
+                except (ValueError, TypeError):
+                    escaped_value = str(value).replace('"', '\\"')
+                    filter_parts.append(f'{key}="{escaped_value}"')
+            if filter_parts:
+                query_config['metadata_filter'] = ' AND '.join(filter_parts)
+                logger.info(f"Document query filter: {query_config['metadata_filter']}")
+
+        # Execute semantic search via documents.query
+        query_response = client.file_search_stores.documents.query(
+            name=document_name,
+            query=query,
+            config=query_config
+        )
+
+        # Extract chunks from response
+        chunks = []
+        if hasattr(query_response, 'relevant_chunks') and query_response.relevant_chunks:
+            for chunk in query_response.relevant_chunks:
+                chunk_data = {}
+                if hasattr(chunk, 'chunk_relevance_score'):
+                    chunk_data['relevance_score'] = chunk.chunk_relevance_score
+                if hasattr(chunk, 'chunk') and chunk.chunk:
+                    c = chunk.chunk
+                    if hasattr(c, 'data') and c.data:
+                        chunk_data['text'] = getattr(c.data, 'string_value', '')
+                    if hasattr(c, 'custom_metadata') and c.custom_metadata:
+                        chunk_meta = {}
+                        for m in c.custom_metadata:
+                            k = getattr(m, 'key', '')
+                            if hasattr(m, 'string_value'):
+                                chunk_meta[k] = getattr(m, 'string_value', '')
+                            elif hasattr(m, 'numeric_value'):
+                                chunk_meta[k] = getattr(m, 'numeric_value', 0)
+                        chunk_data['metadata'] = chunk_meta
+                chunks.append(chunk_data)
+
+        logger.info(f"Document query returned {len(chunks)} chunks")
+
+        return jsonify({
+            'success': True,
+            'document_name': document_name,
+            'query': query,
+            'results_count': results_count,
+            'chunks': chunks,
+            'chunks_returned': len(chunks)
+        })
+
+    except Exception as e:
+        logger.error(f"Error in document query: {str(e)}")
+        return jsonify({'error': f'Error performing document query: {str(e)}'}), 500
+
+
+# ============================================
+# AUTO-ENRICHMENT ENDPOINT - Enriquecimiento automatico con schema estructurado
+# ============================================
+
+# Default enrichment schema for FixMe Malaga use case (tech repair conversations)
+DEFAULT_ENRICH_SCHEMA = {
+    'type': 'object',
+    'properties': {
+        'categoria_principal': {
+            'type': 'string',
+            'description': 'Main category: reparacion_pantalla, bateria, placa_base, software, consulta_precio, garantia, envio, reacondicionado, otro'
+        },
+        'categorias': {
+            'type': 'array',
+            'items': {'type': 'string'},
+            'description': 'All categories that apply to this document'
+        },
+        'dispositivo': {
+            'type': 'string',
+            'description': 'Device model mentioned, e.g. iPhone 14, Samsung S21, HP Omen'
+        },
+        'marca': {
+            'type': 'string',
+            'description': 'Brand: Apple, Samsung, Xiaomi, HP, Lenovo, otro'
+        },
+        'estado_final': {
+            'type': 'string',
+            'description': 'Final status: reparado, pendiente, presupuesto_rechazado, no_reparable, en_proceso'
+        },
+        'sentimiento_cliente': {
+            'type': 'string',
+            'description': 'Client sentiment: positivo, negativo, neutro, mixto'
+        },
+        'resumen': {
+            'type': 'string',
+            'description': 'Brief 1-2 sentence summary of the document content'
+        },
+        'precio_mencionado': {
+            'type': 'number',
+            'description': 'Price mentioned in euros, 0 if none'
+        },
+        'es_recurrente': {
+            'type': 'boolean',
+            'description': 'Whether the client appears to be a recurring customer'
+        }
+    },
+    'required': ['categoria_principal', 'categorias', 'marca', 'estado_final', 'sentimiento_cliente', 'resumen']
+}
+
+
+def _analyze_file_with_schema(file_path, filename, mime_type, schema, model='gemini-3-flash-preview'):
+    """
+    Core analysis: upload file to Gemini and extract structured metadata using response_schema.
+    Handles DOCX/XLSX text extraction. Cleans up Files API upload in all cases.
+    """
+    use_text_extraction = mime_type in [
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel',
+        'application/msword'
+    ]
+
+    uploaded_file = None
+
+    if use_text_extraction:
+        logger.info(f"Auto-enrich: extracting text from {mime_type}")
+        if 'wordprocessingml' in mime_type or mime_type == 'application/msword':
+            extracted_text = extract_text_from_docx(file_path)
+        elif 'spreadsheetml' in mime_type or mime_type == 'application/vnd.ms-excel':
+            extracted_text = extract_text_from_xlsx(file_path)
+        else:
+            extracted_text = ''
+        if not extracted_text:
+            raise ValueError("Could not extract text from document")
+    else:
+        logger.info(f"Auto-enrich: uploading to Files API ({mime_type})")
+        uploaded_file = client.files.upload(
+            file=file_path,
+            config={'mime_type': mime_type, 'display_name': filename}
+        )
+
+    system_instruction = (
+        "You are a document analysis expert. Extract structured metadata from the document "
+        "following the provided JSON schema exactly. Return only valid JSON with the requested fields. "
+        "Base all values strictly on what appears in the document."
+    )
+
+    prompt = f"Analyze this document and extract structured metadata. Filename: {filename}"
+
+    try:
+        if use_text_extraction:
+            content_parts = [
+                types.Part.from_text(text=f"{prompt}\n\nDocument content:\n{extracted_text[:12000]}")
+            ]
+        else:
+            content_parts = [
+                types.Part.from_uri(
+                    file_uri=uploaded_file.uri,
+                    mime_type=uploaded_file.mime_type
+                ),
+                types.Part.from_text(text=prompt)
+            ]
+
+        response = client.models.generate_content(
+            model=model,
+            contents=[types.Content(role='user', parts=content_parts)],
+            config=types.GenerateContentConfig(
+                system_instruction=system_instruction,
+                temperature=0.1,
+                response_mime_type='application/json',
+                response_schema=schema
+            )
+        )
+
+        return json.loads(response.text)
+
+    finally:
+        if uploaded_file is not None:
+            try:
+                client.files.delete(name=uploaded_file.name)
+            except Exception as cleanup_err:
+                logger.warning(f"Could not delete temp file from Files API: {cleanup_err}")
+
+
+@app.route('/auto-enrich', methods=['POST'])
+def auto_enrich():
+    """
+    Analyze a single document with structured output (guaranteed JSON schema).
+    Accepts multipart/form-data with 'file' field.
+    Optional form fields: 'schema' (JSON string), 'model'.
+    Returns enriched metadata matching the schema.
+    """
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file uploaded'}), 400
+
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+
+        model = request.form.get('model', 'gemini-3-flash-preview')
+
+        custom_schema_raw = request.form.get('schema')
+        if custom_schema_raw:
+            try:
+                schema = json.loads(custom_schema_raw)
+            except json.JSONDecodeError:
+                return jsonify({'error': 'Invalid JSON in schema parameter'}), 400
+        else:
+            schema = DEFAULT_ENRICH_SCHEMA
+
+        mime_type = get_mime_type(file.filename)
+        logger.info(f"Auto-enrich: {file.filename} ({mime_type}), model: {model}")
+
+        temp_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(file.filename))
+        file.save(temp_path)
+
+        try:
+            enriched = _analyze_file_with_schema(temp_path, file.filename, mime_type, schema, model)
+        finally:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+
+        logger.info(f"Auto-enrich result for {file.filename}: {enriched}")
+
+        return jsonify({
+            'success': True,
+            'metadata': enriched,
+            'filename': file.filename
+        })
+
+    except Exception as e:
+        logger.error(f"Error in auto-enrich: {str(e)}")
+        return jsonify({'error': f'Error enriching document: {str(e)}'}), 500
+
+
+# ============================================
 # UTILITY ENDPOINTS - Endpoints de utilidad
 # ============================================
 
@@ -1653,22 +1975,7 @@ def get_current_store_documents():
         documents = []
         try:
             for doc in client.file_search_stores.documents.list(parent=file_search_store.name):
-                # Extract custom metadata from Gemini
-                custom_metadata = {}
-                if hasattr(doc, 'custom_metadata') and doc.custom_metadata:
-                    for metadata in doc.custom_metadata:
-                        key = getattr(metadata, 'key', '')
-                        if hasattr(metadata, 'string_value'):
-                            custom_metadata[key] = getattr(metadata, 'string_value', '')
-                        elif hasattr(metadata, 'numeric_value'):
-                            custom_metadata[key] = getattr(metadata, 'numeric_value', 0)
-
-                # Merge with local metadata edits
-                for file_info in uploaded_files:
-                    if file_info.get('document_id') == doc.name:
-                        local_metadata = file_info.get('custom_metadata', {})
-                        custom_metadata.update(local_metadata)
-                        break
+                custom_metadata = extract_document_metadata(doc, uploaded_files)
 
                 documents.append({
                     'name': doc.name,
