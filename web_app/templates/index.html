@@ -879,6 +879,9 @@
             <button class="tab-btn" onclick="switchTab('docs')" data-i18n="tabs.docs">
                 📚 Docs & Help
             </button>
+            <button class="tab-btn" onclick="switchTab('investigations')">
+                🔬 Investigaciones
+            </button>
         </div>
 
         <!-- Upload Tab Content -->
@@ -1335,6 +1338,112 @@
                                     <div style="color: #111827; font-size: 14px;" id="serverStatus">Running on localhost:5001</div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Investigations Tab -->
+        <div id="investigations-tab" class="tab-content">
+            <div style="max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start;">
+
+                <!-- Left column: New investigation form -->
+                <div class="card">
+                    <h2>🔬 Nueva Investigacion</h2>
+
+                    <!-- Template selector -->
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">
+                            Plantilla de investigacion
+                        </label>
+                        <select id="investigationTemplate" onchange="applyInvestigationTemplate()"
+                            style="width: 100%; padding: 10px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 14px; color: #374151; background: white;">
+                            <option value="">-- Seleccionar plantilla --</option>
+                            <option value="satisfaccion">Satisfaccion del cliente</option>
+                            <option value="precios">Analisis de precios</option>
+                            <option value="operativa">Operativa del taller</option>
+                            <option value="comunicacion">Comunicacion</option>
+                            <option value="captacion">Captacion de clientes</option>
+                        </select>
+                    </div>
+
+                    <!-- Title -->
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">
+                            Titulo de la investigacion
+                        </label>
+                        <input type="text" id="investigationTitle" placeholder="Ej: Analisis de satisfaccion del cliente Q1 2025"
+                            style="width: 100%; padding: 10px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 14px; color: #374151;">
+                    </div>
+
+                    <!-- Questions list -->
+                    <div style="margin-bottom: 8px;">
+                        <label style="display: block; margin-bottom: 10px; font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">
+                            Preguntas
+                        </label>
+                        <div id="investigationQuestions">
+                            <div style="display: flex; gap: 8px; margin-bottom: 8px;" class="inv-question-row">
+                                <input type="text" class="inv-question"
+                                    placeholder="Pregunta 1..."
+                                    style="flex: 1; padding: 8px 12px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 14px;">
+                                <button onclick="removeInvQuestion(this)"
+                                    style="padding: 8px 12px; background: #EF4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; min-width: 38px; transition: background 0.2s;"
+                                    onmouseover="this.style.background='#DC2626'" onmouseout="this.style.background='#EF4444'">
+                                    ✕
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="addInvQuestion()" class="btn btn-secondary"
+                        style="width: 100%; padding: 9px; margin-bottom: 16px; font-size: 13px;">
+                        + Anadir pregunta
+                    </button>
+
+                    <!-- Model selector -->
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">
+                            Modelo
+                        </label>
+                        <select id="investigationModel"
+                            style="width: 100%; padding: 8px 12px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 14px; color: #374151; background: white;">
+                            <option value="gemini-2.5-pro">gemini-2.5-pro (Recomendado)</option>
+                            <option value="gemini-2.5-flash">gemini-2.5-flash (Rapido)</option>
+                            <option value="gemini-2.0-flash">gemini-2.0-flash (Economico)</option>
+                        </select>
+                    </div>
+
+                    <!-- Run button -->
+                    <button onclick="runInvestigation()" class="btn btn-primary" id="runInvestigationBtn"
+                        style="width: 100%; padding: 13px; font-size: 15px; font-weight: 700;">
+                        🔬 Investigar
+                    </button>
+
+                    <!-- Progress indicator -->
+                    <div id="investigationProgress" style="display: none; margin-top: 16px; padding: 14px; background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; color: #1D4ED8; font-size: 14px; text-align: center;">
+                        <div style="margin-bottom: 8px; font-weight: 600;">Investigando... esto puede tardar unos minutos</div>
+                        <div id="investigationProgressText" style="color: #3B82F6; font-size: 13px;">Iniciando...</div>
+                    </div>
+
+                    <!-- Results area -->
+                    <div id="investigationResults" style="display: none; margin-top: 20px;"></div>
+                </div>
+
+                <!-- Right column: Saved investigations list -->
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2 style="margin-bottom: 0;">📋 Investigaciones Guardadas</h2>
+                        <button onclick="loadInvestigations()"
+                            style="padding: 6px 14px; background: #F3F4F6; border: 1px solid #D1D5DB; border-radius: 6px; cursor: pointer; font-size: 13px; color: #374151;"
+                            onmouseover="this.style.background='#E5E7EB'" onmouseout="this.style.background='#F3F4F6'">
+                            Actualizar
+                        </button>
+                    </div>
+                    <div id="savedInvestigations">
+                        <div style="text-align: center; color: #9CA3AF; padding: 40px 20px;">
+                            <div style="font-size: 36px; margin-bottom: 12px;">📋</div>
+                            <p>Cargando investigaciones...</p>
                         </div>
                     </div>
                 </div>
@@ -3421,6 +3530,8 @@
                 loadApiDocumentation();
             } else if (tabName === 'stores') {
                 loadStoresTab();
+            } else if (tabName === 'investigations') {
+                loadInvestigations();
             }
         };
 
@@ -6595,6 +6706,359 @@ console.log(\`Storage: \${data.total_size_mb} MB / \${data.tier_limit_gb} GB (\$
                 }
             });
         }
+
+        // ==========================================
+        // INVESTIGATIONS / REPORTS
+        // ==========================================
+
+        const INVESTIGATION_TEMPLATES = {
+            satisfaccion: {
+                title: 'Analisis de satisfaccion del cliente',
+                questions: [
+                    'Como valoran los clientes el servicio? Que aspectos mencionan positivamente?',
+                    'Cuales son las quejas y reclamaciones mas frecuentes?',
+                    'Como se gestionan los clientes insatisfechos? Dame ejemplos concretos.',
+                    'Hay clientes que repiten? Que indicios hay de fidelizacion?'
+                ]
+            },
+            precios: {
+                title: 'Analisis de precios y presupuestos',
+                questions: [
+                    'Cuales son los precios medios de las reparaciones por tipo de servicio?',
+                    'Que ocurre cuando un cliente rechaza un presupuesto? Como se gestiona?',
+                    'Se mencionan descuentos o promociones? En que casos se aplican?',
+                    'Como perciben los clientes los precios en comparacion con la competencia?'
+                ]
+            },
+            operativa: {
+                title: 'Analisis operativo del taller',
+                questions: [
+                    'Cuales son las averias y reparaciones mas frecuentes?',
+                    'Cuanto tarda normalmente el diagnostico y la reparacion?',
+                    'Que marcas y dispositivos se reparan con mayor frecuencia?',
+                    'Como se gestionan los envios y recogidas de dispositivos?'
+                ]
+            },
+            comunicacion: {
+                title: 'Analisis del estilo de comunicacion',
+                questions: [
+                    'Como es el tono de comunicacion? Se tutea o se habla de usted?',
+                    'Se usan emojis? Con que frecuencia y cuales son los mas habituales?',
+                    'Como se saludan y se despiden en las conversaciones?',
+                    'Cual es el tiempo de respuesta habitual a los mensajes?'
+                ]
+            },
+            captacion: {
+                title: 'Analisis de captacion de clientes',
+                questions: [
+                    'De donde provienen los clientes? Google, redes sociales, recomendaciones?',
+                    'Se menciona competencia u otros talleres en las conversaciones?',
+                    'Como se gestionan las resenas y el boca a boca?',
+                    'Existen colaboraciones con otros profesionales o comercios?'
+                ]
+            }
+        };
+
+        window.applyInvestigationTemplate = function() {
+            const templateKey = document.getElementById('investigationTemplate').value;
+            if (!templateKey || !INVESTIGATION_TEMPLATES[templateKey]) return;
+
+            const template = INVESTIGATION_TEMPLATES[templateKey];
+
+            // Set title
+            document.getElementById('investigationTitle').value = template.title;
+
+            // Clear existing questions and populate from template
+            const container = document.getElementById('investigationQuestions');
+            container.innerHTML = '';
+            template.questions.forEach((q, index) => {
+                const row = document.createElement('div');
+                row.className = 'inv-question-row';
+                row.style.cssText = 'display: flex; gap: 8px; margin-bottom: 8px;';
+                row.innerHTML = `
+                    <input type="text" class="inv-question"
+                        placeholder="Pregunta ${index + 1}..."
+                        value="${q.replace(/"/g, '&quot;')}"
+                        style="flex: 1; padding: 8px 12px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 14px;">
+                    <button onclick="removeInvQuestion(this)"
+                        style="padding: 8px 12px; background: #EF4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; min-width: 38px; transition: background 0.2s;"
+                        onmouseover="this.style.background='#DC2626'" onmouseout="this.style.background='#EF4444'">
+                        ✕
+                    </button>
+                `;
+                container.appendChild(row);
+            });
+        };
+
+        window.addInvQuestion = function() {
+            const container = document.getElementById('investigationQuestions');
+            const count = container.querySelectorAll('.inv-question').length + 1;
+            const row = document.createElement('div');
+            row.className = 'inv-question-row';
+            row.style.cssText = 'display: flex; gap: 8px; margin-bottom: 8px;';
+            row.innerHTML = `
+                <input type="text" class="inv-question"
+                    placeholder="Pregunta ${count}..."
+                    style="flex: 1; padding: 8px 12px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 14px;">
+                <button onclick="removeInvQuestion(this)"
+                    style="padding: 8px 12px; background: #EF4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; min-width: 38px; transition: background 0.2s;"
+                    onmouseover="this.style.background='#DC2626'" onmouseout="this.style.background='#EF4444'">
+                    ✕
+                </button>
+            `;
+            container.appendChild(row);
+            row.querySelector('.inv-question').focus();
+        };
+
+        window.removeInvQuestion = function(btn) {
+            const container = document.getElementById('investigationQuestions');
+            const rows = container.querySelectorAll('.inv-question-row');
+            if (rows.length <= 1) {
+                showNotification('Debe haber al menos una pregunta', 'error');
+                return;
+            }
+            btn.closest('.inv-question-row').remove();
+        };
+
+        window.runInvestigation = function() {
+            const title = document.getElementById('investigationTitle').value.trim();
+            const questions = Array.from(document.querySelectorAll('.inv-question'))
+                .map(el => el.value.trim())
+                .filter(q => q.length > 0);
+            const model = document.getElementById('investigationModel').value;
+
+            if (!title) {
+                showNotification('Por favor, escribe un titulo para la investigacion', 'error');
+                return;
+            }
+            if (questions.length === 0) {
+                showNotification('Por favor, escribe al menos una pregunta', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('runInvestigationBtn');
+            const progress = document.getElementById('investigationProgress');
+            const progressText = document.getElementById('investigationProgressText');
+            const resultsDiv = document.getElementById('investigationResults');
+
+            btn.disabled = true;
+            btn.textContent = 'Investigando...';
+            progress.style.display = 'block';
+            resultsDiv.style.display = 'none';
+            progressText.textContent = `Procesando ${questions.length} pregunta(s) con ${model}...`;
+
+            fetch('/investigate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, questions, model })
+            })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.textContent = '🔬 Investigar';
+                progress.style.display = 'none';
+
+                if (data.error) {
+                    showNotification(`Error: ${data.error}`, 'error');
+                    return;
+                }
+
+                renderInvestigationResults(data.investigation, resultsDiv);
+                showNotification('Investigacion completada y guardada', 'success');
+                loadInvestigations();
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btn.textContent = '🔬 Investigar';
+                progress.style.display = 'none';
+                showNotification(`Error de red: ${err.message}`, 'error');
+            });
+        };
+
+        function renderInvestigationResults(inv, container) {
+            const totalCitations = inv.metadata ? inv.metadata.total_citations : 0;
+            const modelUsed = inv.metadata ? inv.metadata.model_used : '';
+            const createdAt = inv.created_at ? new Date(inv.created_at).toLocaleString('es-ES') : '';
+
+            let sectionsHtml = '';
+            (inv.sections || []).forEach((section, idx) => {
+                const citationsHtml = section.citations && section.citations.length > 0
+                    ? section.citations.map(c => `
+                        <span class="inv-citation-chip" title="${(c.text || '').replace(/"/g, '&quot;')}"
+                            style="display: inline-block; padding: 3px 8px; background: #DBEAFE; color: #1E40AF;
+                                   border-radius: 12px; font-size: 11px; margin: 2px; cursor: help; font-weight: 500;">
+                            📄 ${c.title || 'Documento'}
+                        </span>`).join('')
+                    : '<span style="color: #9CA3AF; font-size: 12px;">Sin citas</span>';
+
+                const sectionId = `inv-section-${inv.id || idx}-${idx}`;
+                sectionsHtml += `
+                    <div style="border: 1px solid #E5E7EB; border-radius: 10px; margin-bottom: 12px; overflow: hidden;">
+                        <button onclick="toggleInvSection('${sectionId}')"
+                            style="width: 100%; text-align: left; padding: 14px 16px; background: #F9FAFB;
+                                   border: none; cursor: pointer; font-weight: 600; font-size: 14px; color: #111827;
+                                   display: flex; justify-content: space-between; align-items: center;"
+                            onmouseover="this.style.background='#F3F4F6'" onmouseout="this.style.background='#F9FAFB'">
+                            <span>P${idx + 1}: ${section.question}</span>
+                            <span style="color: #6B7280; font-size: 16px;" id="${sectionId}-arrow">▼</span>
+                        </button>
+                        <div id="${sectionId}" style="padding: 16px; border-top: 1px solid #E5E7EB;">
+                            <div class="message-content" style="background: transparent; padding: 0; border: none; max-width: 100%; display: block;">
+                                ${typeof marked !== 'undefined' ? marked.parse(section.answer || '') : (section.answer || '').replace(/\n/g, '<br>')}
+                            </div>
+                            <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #F3F4F6;">
+                                <span style="font-size: 11px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 8px;">
+                                    Fuentes:
+                                </span>
+                                ${citationsHtml}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = `
+                <div style="border-left: 4px solid #0081BA; background: #EFF6FF; border-radius: 10px; padding: 18px; margin-bottom: 16px;">
+                    <div style="font-size: 11px; font-weight: 700; color: #1D4ED8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+                        Resumen ejecutivo
+                    </div>
+                    <div style="color: #1E3A5F; font-size: 14px; line-height: 1.6;">
+                        ${typeof marked !== 'undefined' ? marked.parse(inv.summary || '') : (inv.summary || '').replace(/\n/g, '<br>')}
+                    </div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    ${sectionsHtml}
+                </div>
+                <div style="padding: 12px; background: #F9FAFB; border-radius: 8px; font-size: 12px; color: #6B7280; display: flex; flex-wrap: wrap; gap: 16px;">
+                    <span>Modelo: <strong style="color: #374151;">${modelUsed}</strong></span>
+                    <span>Preguntas: <strong style="color: #374151;">${(inv.sections || []).length}</strong></span>
+                    <span>Citas totales: <strong style="color: #374151;">${totalCitations}</strong></span>
+                    <span>Generado: <strong style="color: #374151;">${createdAt}</strong></span>
+                </div>
+            `;
+            container.style.display = 'block';
+        }
+
+        window.toggleInvSection = function(sectionId) {
+            const el = document.getElementById(sectionId);
+            const arrow = document.getElementById(sectionId + '-arrow');
+            if (!el) return;
+            if (el.style.display === 'none') {
+                el.style.display = 'block';
+                if (arrow) arrow.textContent = '▼';
+            } else {
+                el.style.display = 'none';
+                if (arrow) arrow.textContent = '▶';
+            }
+        };
+
+        window.loadInvestigations = function() {
+            const container = document.getElementById('savedInvestigations');
+            if (!container) return;
+
+            container.innerHTML = '<div style="text-align: center; color: #9CA3AF; padding: 20px;">Cargando...</div>';
+
+            fetch('/investigations')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        container.innerHTML = `<div style="color: #EF4444; padding: 16px;">${data.error}</div>`;
+                        return;
+                    }
+                    const investigations = data.investigations || [];
+                    if (investigations.length === 0) {
+                        container.innerHTML = `
+                            <div style="text-align: center; color: #9CA3AF; padding: 40px 20px;">
+                                <div style="font-size: 36px; margin-bottom: 12px;">🔬</div>
+                                <p style="font-size: 14px;">No hay investigaciones guardadas.</p>
+                                <p style="font-size: 13px; margin-top: 8px;">Crea tu primera investigacion en el panel de la izquierda.</p>
+                            </div>`;
+                        return;
+                    }
+
+                    container.innerHTML = investigations.map(inv => {
+                        const createdAt = inv.created_at ? new Date(inv.created_at).toLocaleString('es-ES') : 'Fecha desconocida';
+                        const questionCount = inv.metadata ? inv.metadata.total_questions : (inv.sections || []).length;
+                        const citCount = inv.metadata ? inv.metadata.total_citations : 0;
+                        const modelUsed = inv.metadata ? inv.metadata.model_used : '';
+                        const summaryPreview = (inv.summary || '').replace(/<[^>]+>/g, '').substring(0, 120) + '...';
+
+                        return `
+                            <div style="background: #F9FAFB; border-radius: 10px; padding: 16px; margin-bottom: 12px;
+                                        border-left: 4px solid #0081BA; transition: all 0.2s ease;"
+                                 onmouseover="this.style.transform='translateX(2px)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)'"
+                                 onmouseout="this.style.transform='none'; this.style.boxShadow='none'">
+                                <div style="font-weight: 700; color: #111827; font-size: 14px; margin-bottom: 6px;">
+                                    ${inv.title}
+                                </div>
+                                <div style="font-size: 12px; color: #6B7280; margin-bottom: 10px; line-height: 1.5;">
+                                    ${summaryPreview}
+                                </div>
+                                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; font-size: 11px; color: #9CA3AF;">
+                                    <span>📅 ${createdAt}</span>
+                                    <span>❓ ${questionCount} preguntas</span>
+                                    <span>📄 ${citCount} citas</span>
+                                    ${modelUsed ? `<span>🤖 ${modelUsed}</span>` : ''}
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <button onclick="viewInvestigation('${inv.id}')"
+                                        style="flex: 1; padding: 7px 12px; background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE;
+                                               border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s;"
+                                        onmouseover="this.style.background='#DBEAFE'" onmouseout="this.style.background='#EFF6FF'">
+                                        Ver resultados
+                                    </button>
+                                    <button onclick="deleteInvestigation('${inv.id}')"
+                                        style="padding: 7px 12px; background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA;
+                                               border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s;"
+                                        onmouseover="this.style.background='#FEE2E2'" onmouseout="this.style.background='#FEF2F2'">
+                                        Eliminar
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                })
+                .catch(err => {
+                    container.innerHTML = `<div style="color: #EF4444; padding: 16px;">Error cargando investigaciones: ${err.message}</div>`;
+                });
+        };
+
+        window.viewInvestigation = function(id) {
+            fetch(`/investigations/${id}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        showNotification(`Error: ${data.error}`, 'error');
+                        return;
+                    }
+                    const resultsDiv = document.getElementById('investigationResults');
+                    renderInvestigationResults(data.investigation, resultsDiv);
+                    // Scroll to results smoothly
+                    resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                })
+                .catch(err => {
+                    showNotification(`Error: ${err.message}`, 'error');
+                });
+        };
+
+        window.deleteInvestigation = function(id) {
+            if (!confirm('Seguro que deseas eliminar esta investigacion? Esta accion no se puede deshacer.')) {
+                return;
+            }
+            fetch(`/investigations/${id}`, { method: 'DELETE' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        showNotification(`Error: ${data.error}`, 'error');
+                        return;
+                    }
+                    showNotification('Investigacion eliminada', 'success');
+                    loadInvestigations();
+                })
+                .catch(err => {
+                    showNotification(`Error: ${err.message}`, 'error');
+                });
+        };
 
         // Show notification
         function showNotification(message, type = 'info') {

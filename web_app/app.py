@@ -2015,6 +2015,197 @@ def status():
     })
 
 # ============================================
+# INVESTIGATIONS / REPORTS - Investigaciones multi-pregunta con RAG
+# ============================================
+
+@app.route('/investigate', methods=['POST'])
+def investigate():
+    """Execute a multi-question investigation using RAG with File Search.
+
+    Each question is answered independently using semantic search on the store,
+    then a final executive summary is generated from all answers.
+
+    Request body:
+        title (str): Title of the investigation
+        questions (list[str]): List of questions to investigate
+        store_name (str, optional): Store to use; defaults to current active store
+        model (str, optional): Model to use; defaults to gemini-2.5-pro
+
+    Returns:
+        JSON with the full investigation object including sections and summary
+    """
+    import uuid
+    import datetime
+
+    try:
+        data = request.json
+        title = data.get('title', '').strip()
+        questions = data.get('questions', [])
+        store_name = data.get('store_name', '')
+        model = data.get('model', 'gemini-2.5-pro')
+
+        if not title:
+            return jsonify({'error': 'Title is required'}), 400
+        if not questions or len(questions) == 0:
+            return jsonify({'error': 'At least one question is required'}), 400
+
+        # Determine target store
+        target_store = store_name or (file_search_store.name if file_search_store else None)
+        if not target_store:
+            return jsonify({'error': 'No active store. Create one and upload documents first.'}), 400
+
+        logger.info(f"Starting investigation '{title}' with {len(questions)} questions on store {target_store}")
+
+        sections = []
+        for i, question in enumerate(questions):
+            logger.info(f"Processing question {i+1}/{len(questions)}: {question[:80]}...")
+            try:
+                response = client.models.generate_content(
+                    model=model,
+                    contents=question,
+                    config=types.GenerateContentConfig(
+                        tools=[types.Tool(
+                            file_search=types.FileSearch(
+                                file_search_store_names=[target_store]
+                            )
+                        )]
+                    )
+                )
+
+                # Extract citations from grounding metadata
+                citations = []
+                if response.candidates and response.candidates[0].grounding_metadata:
+                    grounding = response.candidates[0].grounding_metadata
+                    if hasattr(grounding, 'grounding_chunks') and grounding.grounding_chunks:
+                        for chunk in grounding.grounding_chunks:
+                            if hasattr(chunk, 'retrieved_context'):
+                                ctx = chunk.retrieved_context
+                                citations.append({
+                                    'title': getattr(ctx, 'title', ''),
+                                    'text': getattr(ctx, 'text', '')[:200]
+                                })
+
+                sections.append({
+                    'question': question,
+                    'answer': response.text,
+                    'citations': citations
+                })
+
+            except Exception as q_error:
+                logger.error(f"Error processing question {i+1}: {str(q_error)}")
+                sections.append({
+                    'question': question,
+                    'answer': f'Error al procesar esta pregunta: {str(q_error)}',
+                    'citations': []
+                })
+
+        # Generate executive summary from all answers
+        logger.info("Generating executive summary...")
+        all_answers = "\n\n".join([
+            f"Pregunta: {s['question']}\nRespuesta: {s['answer']}"
+            for s in sections
+        ])
+        try:
+            summary_response = client.models.generate_content(
+                model=model,
+                contents=(
+                    f"Eres un analista experto. Genera un resumen ejecutivo conciso de 3-5 lineas "
+                    f"de esta investigacion titulada '{title}':\n\n{all_answers}"
+                )
+            )
+            summary = summary_response.text
+        except Exception as summary_error:
+            logger.error(f"Error generating summary: {str(summary_error)}")
+            summary = "No se pudo generar el resumen ejecutivo."
+
+        investigation = {
+            'id': str(uuid.uuid4()),
+            'title': title,
+            'store_name': target_store,
+            'sections': sections,
+            'summary': summary,
+            'created_at': datetime.datetime.now().isoformat(),
+            'metadata': {
+                'total_questions': len(questions),
+                'total_citations': sum(len(s['citations']) for s in sections),
+                'model_used': model
+            }
+        }
+
+        # Persist to state file
+        investigations = load_state_value('investigations', [])
+        investigations.append(investigation)
+        save_state_value('investigations', investigations)
+
+        logger.info(f"Investigation '{title}' completed. ID: {investigation['id']}")
+
+        return jsonify({'success': True, 'investigation': investigation})
+
+    except Exception as e:
+        logger.error(f"Error in investigate: {str(e)}")
+        return jsonify({'error': f'Error running investigation: {str(e)}'}), 500
+
+
+@app.route('/investigations', methods=['GET'])
+def list_investigations():
+    """List all saved investigations, sorted by creation date descending."""
+    try:
+        investigations = load_state_value('investigations', [])
+        # Return newest first
+        investigations_sorted = sorted(
+            investigations,
+            key=lambda x: x.get('created_at', ''),
+            reverse=True
+        )
+        return jsonify({
+            'success': True,
+            'investigations': investigations_sorted,
+            'count': len(investigations_sorted)
+        })
+    except Exception as e:
+        logger.error(f"Error listing investigations: {str(e)}")
+        return jsonify({'error': f'Error listing investigations: {str(e)}'}), 500
+
+
+@app.route('/investigations/<investigation_id>', methods=['GET'])
+def get_investigation(investigation_id):
+    """Get a specific investigation by ID."""
+    try:
+        investigations = load_state_value('investigations', [])
+        for inv in investigations:
+            if inv.get('id') == investigation_id:
+                return jsonify({'success': True, 'investigation': inv})
+        return jsonify({'error': f'Investigation not found: {investigation_id}'}), 404
+    except Exception as e:
+        logger.error(f"Error getting investigation {investigation_id}: {str(e)}")
+        return jsonify({'error': f'Error getting investigation: {str(e)}'}), 500
+
+
+@app.route('/investigations/<investigation_id>', methods=['DELETE'])
+def delete_investigation(investigation_id):
+    """Delete a specific investigation by ID."""
+    try:
+        investigations = load_state_value('investigations', [])
+        original_count = len(investigations)
+        investigations = [inv for inv in investigations if inv.get('id') != investigation_id]
+
+        if len(investigations) == original_count:
+            return jsonify({'error': f'Investigation not found: {investigation_id}'}), 404
+
+        save_state_value('investigations', investigations)
+        logger.info(f"Deleted investigation: {investigation_id}")
+
+        return jsonify({
+            'success': True,
+            'message': 'Investigation deleted successfully',
+            'id': investigation_id
+        })
+    except Exception as e:
+        logger.error(f"Error deleting investigation {investigation_id}: {str(e)}")
+        return jsonify({'error': f'Error deleting investigation: {str(e)}'}), 500
+
+
+# ============================================
 # APPLICATION ENTRY POINT - Punto de entrada de la aplicación
 # Puerto configurado en 5001
 # ============================================
