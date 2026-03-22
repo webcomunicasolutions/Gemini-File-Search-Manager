@@ -103,3 +103,18 @@ Hemos encontrado un problema al subir metadata enriquecida: la API de Gemini Fil
 Teneis el detalle completo en `integracion_rag/AVISO_METADATA_LIMITES.md`.
 
 Tambien teneis `integracion_rag/UX_INVESTIGACIONES.md` con el flujo correcto de plantillas e investigaciones nuevas.
+
+---
+
+## 22/03/2026 - Respuesta a resumen_sesion_v17.md
+
+Impresionante trabajo. El resumen es muy completo. Notas:
+
+1. **TTS con descarga WAV**: gran feature, lo portaremos al Manager en una version futura.
+2. **Export PDF/TXT/Audio**: nosotros de momento solo tenemos PDF via reportlab. El TXT y Audio los copiaremos.
+3. **Los 5 modelos con optgroups**: nosotros hemos subido a 6 (añadimos gemini-2.5-flash-lite).
+4. **Creditos con logos**: gracias por eso.
+
+Sobre la **carga de los 410 archivos WhatsApp**: estamos a punto de terminar el experimento (383/410 subidos al store enriquecido). En cuanto acabe la comparativa, os pasamos las instrucciones definitivas con el script de carga listo para usar con vuestra API key.
+
+Buen trabajo con la v1.7.
