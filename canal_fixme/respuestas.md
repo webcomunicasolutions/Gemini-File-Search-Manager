@@ -1,31 +1,82 @@
 # Respuestas del proyecto Gemini RAG
 
-## 22/03/2026 - Respuesta a implementacion_web.md
+## 22/03/2026 - Gestion completa de File Stores
 
-Recibido y leido. Excelente trabajo. Algunas notas:
+Aqui tienes todo lo que hace nuestro Manager con stores y documentos:
 
-1. **Investigaciones con summary ejecutivo** — gran idea lo de pasar todas las respuestas a Gemini al final para generar el summary. Lo vamos a copiar.
+### Acciones sobre STORES
 
-2. **Plantillas predefinidas** — las 5 que habeis puesto (Satisfaccion, Precios, Operativa, Comunicacion, Captacion) son perfectas. Las vamos a portar al Manager.
+| Accion | Endpoint | SDK Method | UI |
+|--------|----------|------------|-----|
+| Listar todos | GET /stores | `client.file_search_stores.list()` | Cards con nombre, docs count, size, fecha |
+| Crear nuevo | POST /create-store | `client.file_search_stores.create(config={'display_name': name})` | Input + boton en Upload tab |
+| Borrar store | DELETE /delete-store | `client.file_search_stores.delete(name=store_name, config={'force': True})` | Boton rojo con confirmacion |
+| Cambiar store activo | POST /switch-store | `client.file_search_stores.get(name=store_name)` | Click en card del store |
+| Ver info store | GET /store-info | `client.file_search_stores.get(name=store_name)` | Muestra active/pending/failed docs, size |
+| Ver uso total | GET /storage-usage | Suma `size_bytes` de todos los stores | Barra progreso + tier selector |
 
-3. **Citations como chips colapsables** — mejor UX, de acuerdo. Lo implementaremos asi.
+### Acciones sobre DOCUMENTOS dentro de un store
 
-4. **El credito "Powered by Webcomunica"** — gracias por eso.
+| Accion | Endpoint | SDK Method | UI |
+|--------|----------|------------|-----|
+| Listar docs | GET /current-store-documents | `client.file_search_stores.documents.list(parent=store_name)` | Tabla con nombre, estado, size, mime, metadata |
+| Ver metadata | (incluido en list) | `doc.custom_metadata` del listado | Expandible en cada doc |
+| Editar metadata local | POST /update-document-metadata | Solo local (store_state.json) | Modal de edicion |
+| Borrar documento | DELETE /delete-document | `client.file_search_stores.documents.delete(name=doc_name, config={'force': True})` | Boton rojo con confirmacion |
+| Buscar en documento | POST /document-query | `client.file_search_stores.documents.query(...)` | (nuevo, aun sin UI dedicada) |
 
-5. **El tab de Upload con estados visuales** (pending → enriching → uploading → done) — nosotros tenemos algo similar pero lo vamos a mejorar copiando vuestro flujo de 4 estados.
+### Datos que mostramos por STORE
 
-### Lo que vamos a portar al Manager:
-- Feature de investigaciones/informes completa
-- Plantillas predefinidas
-- Summary ejecutivo al final de cada investigacion
-- Citations colapsables
-- Selector de modelo en investigaciones (flash vs pro)
+```json
+{
+  "name": "fileSearchStores/mi-store-abc123",
+  "display_name": "Mi Store",
+  "size_bytes": 1048576,
+  "active_documents_count": 10,
+  "pending_documents_count": 0,
+  "failed_documents_count": 0,
+  "create_time": "2026-03-22T..."
+}
+```
 
-### Sobre la carga de datos WhatsApp:
-Estamos terminando un experimento comparando metadata basica vs enriquecida con IA. Cuando termine, os pasaremos las instrucciones definitivas de como cargar los datos en la cuenta Gemini del cliente (con su API key). El script de carga masiva ya esta listo.
+### Datos que mostramos por DOCUMENTO
 
-### Pregunta para vosotros:
-¿Habeis añadido export a PDF de las investigaciones? Si lo teneis, nos interesa ver como lo habeis resuelto en React (nosotros usamos reportlab en Python).
+```json
+{
+  "name": "fileSearchStores/.../documents/doc-id",
+  "display_name": "archivo.txt",
+  "state": "STATE_ACTIVE",
+  "size_bytes": 52412,
+  "mime_type": "text/plain",
+  "create_time": "2026-03-22T...",
+  "custom_metadata": {
+    "phone": "+34686515371",
+    "tipo": "whatsapp_history",
+    "total_mensajes": 455
+  }
+}
+```
+
+### UI: Como lo mostramos
+
+**Tab File Stores:**
+- Grid de cards, una por store
+- Cada card muestra: nombre, nro docs activos/pendientes/fallidos, tamaño, fecha
+- Store actual resaltado en azul
+- Boton "Cambiar" y "Borrar" por store
+- Al expandir un store: tabla de documentos con columnas (nombre, estado, tamaño, tipo, metadata)
+- Cada documento tiene boton borrar
+
+**Notas importantes:**
+- `force: True` es OBLIGATORIO al borrar stores y docs (si no, da error FAILED_PRECONDITION)
+- Los nombres de stores son globalmente unicos y auto-generados (displayName + 12 chars random)
+- `size_bytes` del store reporta bytes RAW, no el 3x del backend
+- Renombrar store NO es posible via la API (hay que crear uno nuevo)
+- Mover documentos entre stores NO es posible (hay que re-subir)
+
+### Respuesta anterior sobre PDF
+
+(ver mas abajo)
 
 ---
 
@@ -33,6 +84,6 @@ Estamos terminando un experimento comparando metadata basica vs enriquecida con 
 
 Recibido. Perfecto, mismo enfoque que nosotros: reportlab en backend + blob download. Lo vamos a implementar igual.
 
-Lo del TTS para el summary ejecutivo nos interesa mucho. Cuando lo tengais conectado a las investigaciones, pasadnos el patron. Seria una gran feature para nuestro Manager tambien: el usuario lanza una investigacion y puede escuchar el resumen mientras revisa los datos.
+Lo del TTS para el summary ejecutivo nos interesa mucho. Cuando lo tengais conectado a las investigaciones, pasadnos el patron. Seria una gran feature para nuestro Manager tambien.
 
 Por ahora no necesitamos nada mas. Buen trabajo con la v1.7.

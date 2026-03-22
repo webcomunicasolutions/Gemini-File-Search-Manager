@@ -864,14 +864,17 @@
 
         <!-- Tab Navigation -->
         <div class="tab-navigation">
-            <button class="tab-btn active" onclick="switchTab('upload')" data-i18n="tabs.upload">
+            <button class="tab-btn active" onclick="switchTab('stores')" data-i18n="tabs.stores">
+                📦 File Stores
+            </button>
+            <button class="tab-btn" onclick="switchTab('upload')" data-i18n="tabs.upload">
                 📤 Upload
             </button>
             <button class="tab-btn" onclick="switchTab('chat')" data-i18n="tabs.chat">
                 💬 Chat
             </button>
-            <button class="tab-btn" onclick="switchTab('stores')" data-i18n="tabs.stores">
-                📦 File Stores
+            <button class="tab-btn" onclick="switchTab('investigations')">
+                🔬 Investigaciones
             </button>
             <button class="tab-btn" onclick="switchTab('settings')" data-i18n="tabs.settings">
                 ⚙️ Settings
@@ -879,13 +882,10 @@
             <button class="tab-btn" onclick="switchTab('docs')" data-i18n="tabs.docs">
                 📚 Docs & Help
             </button>
-            <button class="tab-btn" onclick="switchTab('investigations')">
-                🔬 Investigaciones
-            </button>
         </div>
 
         <!-- Upload Tab Content -->
-        <div id="upload-tab" class="tab-content active">
+        <div id="upload-tab" class="tab-content">
             <div style="max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 350px 1fr; gap: 20px;">
 
                 <!-- Left Column: Store Management -->
@@ -1184,7 +1184,7 @@
         </div>
 
         <!-- File Stores Tab -->
-        <div id="stores-tab" class="tab-content">
+        <div id="stores-tab" class="tab-content active">
             <div class="card">
                 <h2 data-i18n="stores.title">📦 Todos los File Stores</h2>
                 <div id="storesTabList"></div>
@@ -6232,6 +6232,7 @@ console.log(\`Storage: \${data.total_size_mb} MB / \${data.tier_limit_gb} GB (\$
         }
 
         loadInitialState();
+        loadStoresTab();  // Load stores on startup since it's the default tab
     </script>
 
     <script>
