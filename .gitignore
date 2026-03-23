@@ -125,6 +125,9 @@ ipython_config.py
 .claude-file-changes.log
 .claude-progress.log
 
+# Internal communication channel (between projects, not for GitHub)
+canal_fixme/
+
 # GitHub Upload Scripts (local use only - no subir a GitHub)
 SUBIR_A_GITHUB.bat
 INSTRUCCIONES_GITHUB.txt
