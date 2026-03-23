@@ -1429,6 +1429,17 @@
                             + Anadir pregunta
                         </button>
 
+                        <!-- Store selector -->
+                        <div style="margin-bottom: 16px;">
+                            <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">
+                                Store
+                            </label>
+                            <select id="investigationStore"
+                                style="width: 100%; padding: 8px 12px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 14px; color: #374151; background: white;">
+                                <option value="">-- Store activo --</option>
+                            </select>
+                        </div>
+
                         <!-- Model selector -->
                         <div style="margin-bottom: 16px;">
                             <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">
@@ -6983,6 +6994,7 @@ console.log(\`Storage: \${data.total_size_mb} MB / \${data.tier_limit_gb} GB (\$
                 .map(el => el.value.trim())
                 .filter(q => q.length > 0);
             const model = document.getElementById('investigationModel').value;
+            const storeName = document.getElementById('investigationStore')?.value || '';
 
             if (!title) {
                 showNotification('Por favor, escribe un titulo para la investigacion', 'error');
@@ -7007,7 +7019,7 @@ console.log(\`Storage: \${data.total_size_mb} MB / \${data.tier_limit_gb} GB (\$
             fetch('/investigate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title, questions, model })
+                body: JSON.stringify({ title, questions, model, store_name: storeName })
             })
             .then(r => r.json())
             .then(data => {
@@ -7108,6 +7120,10 @@ console.log(\`Storage: \${data.total_size_mb} MB / \${data.tier_limit_gb} GB (\$
                         style="padding: 8px 16px; display: flex; align-items: center; gap: 6px;">
                         📋 Copiar
                     </button>
+                    <button onclick="playInvTTS('${inv.id}')" id="ttsBtn-${inv.id}" class="btn-secondary"
+                        style="padding: 8px 16px; display: flex; align-items: center; gap: 6px; background: #ECFDF5; border-color: #6EE7B7;">
+                        🔊 Escuchar
+                    </button>
                 </div>
             `;
             container.style.display = 'block';
@@ -7126,7 +7142,26 @@ console.log(\`Storage: \${data.total_size_mb} MB / \${data.tier_limit_gb} GB (\$
             }
         };
 
+        // Load stores for investigation selector
+        async function loadInvestigationStores() {
+            const select = document.getElementById('investigationStore');
+            if (!select) return;
+            try {
+                const resp = await fetch('/stores');
+                const data = await resp.json();
+                let html = '<option value="">-- Store activo --</option>';
+                if (data.stores) {
+                    data.stores.forEach(s => {
+                        html += `<option value="${s.name}">${s.display_name || s.name} (${s.active_documents_count || 0} docs)</option>`;
+                    });
+                }
+                select.innerHTML = html;
+            } catch (e) {}
+        }
+
         window.loadInvestigations = function() {
+            loadInvestigationStores();
+
             const container = document.getElementById('savedInvestigations');
             if (!container) return;
 
@@ -7331,6 +7366,58 @@ console.log(\`Storage: \${data.total_size_mb} MB / \${data.tier_limit_gb} GB (\$
                 .then(() => showNotification('Copiado al portapapeles', 'success'))
                 .catch(() => showNotification('Error al copiar', 'error'));
         };
+
+        // TTS - Text to Speech
+        let currentAudio = null;
+        window.playInvTTS = async function(id) {
+            const inv = window._currentInvestigation;
+            if (!inv || inv.id !== id) {
+                showNotification('Carga la investigacion primero (Ver resultados)', 'error');
+                return;
+            }
+
+            const text = (inv.summary || '').substring(0, 4000);
+            if (!text) {
+                showNotification('No hay resumen para reproducir', 'error');
+                return;
+            }
+
+            const btn = document.getElementById(`ttsBtn-${id}`);
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+                if (btn) btn.innerHTML = '🔊 Escuchar';
+                return;
+            }
+
+            if (btn) btn.innerHTML = '⏳ Generando...';
+
+            try {
+                const response = await fetch('/tts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text, voice: 'Aoede' })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    currentAudio = new Audio(`data:audio/wav;base64,${data.audio}`);
+                    currentAudio.onended = () => {
+                        currentAudio = null;
+                        if (btn) btn.innerHTML = '🔊 Escuchar';
+                    };
+                    currentAudio.play();
+                    if (btn) btn.innerHTML = '⏹️ Parar';
+                    showNotification('Reproduciendo resumen...', 'success');
+                } else {
+                    showNotification(data.error || 'Error TTS', 'error');
+                    if (btn) btn.innerHTML = '🔊 Escuchar';
+                }
+            } catch (e) {
+                showNotification('Error generando audio', 'error');
+                if (btn) btn.innerHTML = '🔊 Escuchar';
+            }
+        }
 
         // Show notification
         function showNotification(message, type = 'info') {

@@ -2462,6 +2462,63 @@ def export_investigation_pdf(investigation_id):
 
 
 # ============================================
+# ============================================
+# TTS - Text to Speech
+# ============================================
+
+@app.route('/tts', methods=['POST'])
+def text_to_speech():
+    """Convert text to speech using Gemini TTS"""
+    import base64
+    import struct
+
+    data = request.json
+    text = data.get('text', '')[:4000]  # Limit 4000 chars
+    voice = data.get('voice', 'Aoede')  # Aoede, Charon, Fenrir, Kore, Puck, Leda
+
+    if not text:
+        return jsonify({'error': 'No text provided'}), 400
+
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.5-flash-preview-tts',
+            contents=text,
+            config=types.GenerateContentConfig(
+                response_modalities=['AUDIO'],
+                speech_config=types.SpeechConfig(
+                    voice_config=types.VoiceConfig(
+                        prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice)
+                    )
+                )
+            )
+        )
+
+        # Extract PCM audio data
+        audio_data = response.candidates[0].content.parts[0].inline_data.data
+        sample_rate = 24000  # Gemini TTS outputs 24kHz
+
+        # Convert PCM to WAV
+        num_samples = len(audio_data) // 2
+        wav_header = struct.pack('<4sI4s4sIHHIIHH4sI',
+            b'RIFF', 36 + len(audio_data), b'WAVE',
+            b'fmt ', 16, 1, 1, sample_rate, sample_rate * 2, 2, 16,
+            b'data', len(audio_data)
+        )
+        wav_bytes = wav_header + audio_data
+        audio_base64 = base64.b64encode(wav_bytes).decode('utf-8')
+
+        return jsonify({
+            'success': True,
+            'audio': audio_base64,
+            'format': 'wav',
+            'voice': voice
+        })
+
+    except Exception as e:
+        logger.error(f"TTS error: {str(e)}")
+        return jsonify({'error': f'TTS error: {str(e)}'}), 500
+
+# ============================================
 # APPLICATION ENTRY POINT - Punto de entrada de la aplicación
 # Puerto configurado en 5001
 # ============================================
