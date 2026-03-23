@@ -2042,9 +2042,15 @@ def investigate():
     try:
         data = request.json
         title = data.get('title', '').strip()
-        questions = data.get('questions', [])
+        questions = [q.strip() for q in data.get('questions', []) if q.strip()]
         store_name = data.get('store_name', '')
+        ALLOWED_MODELS = [
+            'gemini-3.1-pro-preview', 'gemini-3-flash-preview', 'gemini-3.1-flash-lite-preview',
+            'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'
+        ]
         model = data.get('model', 'gemini-3.1-pro-preview')
+        if model not in ALLOWED_MODELS:
+            model = 'gemini-3.1-pro-preview'
 
         if not title:
             return jsonify({'error': 'Title is required'}), 400
@@ -2493,12 +2499,17 @@ def text_to_speech():
             )
         )
 
-        # Extract PCM audio data
-        audio_data = response.candidates[0].content.parts[0].inline_data.data
-        sample_rate = 24000  # Gemini TTS outputs 24kHz
+        # Extract PCM audio data (may be base64 string or bytes)
+        raw_audio = response.candidates[0].content.parts[0].inline_data.data
+        if isinstance(raw_audio, str):
+            import base64 as _b64
+            audio_data = _b64.b64decode(raw_audio)
+        else:
+            audio_data = raw_audio
 
-        # Convert PCM to WAV
-        num_samples = len(audio_data) // 2
+        sample_rate = 24000  # Gemini TTS outputs 24kHz mono 16-bit
+
+        # Convert PCM to WAV (mono, 16-bit)
         wav_header = struct.pack('<4sI4s4sIHHIIHH4sI',
             b'RIFF', 36 + len(audio_data), b'WAVE',
             b'fmt ', 16, 1, 1, sample_rate, sample_rate * 2, 2, 16,

@@ -3572,7 +3572,9 @@
                 selectedTab.classList.add('active');
             }
 
-            event.target.classList.add('active');
+            // Mark clicked button as active
+            const clickedBtn = document.querySelector(`.tab-btn[onclick*="'${tabName}'"]`);
+            if (clickedBtn) clickedBtn.classList.add('active');
 
             // Load data based on selected tab
             if (tabName === 'settings') {
@@ -6313,7 +6315,7 @@ console.log(\`Storage: \${data.total_size_mb} MB / \${data.tier_limit_gb} GB (\$
                 storesListContainer.innerHTML = `
                     <div style="text-align: center; padding: 40px; color: #EF4444;">
                         <p>❌ Error: ${error.message}</p>
-                        <button class="btn btn-primary" onclick="loadAllStores()" style="margin-top: 16px;">
+                        <button class="btn btn-primary" onclick="loadStoresTab()" style="margin-top: 16px;">
                             🔄 Reintentar
                         </button>
                     </div>
@@ -6568,7 +6570,7 @@ console.log(\`Storage: \${data.total_size_mb} MB / \${data.tier_limit_gb} GB (\$
                 showNotification(t('notifications.documentDeleted'), 'success');
 
                 // Reload the stores list to reflect changes
-                await loadAllStores();
+                await loadStoresTab();
 
                 // If the deleted document was from the current store, reload page state
                 if (file_search_store && documentName.startsWith(file_search_store.name)) {
@@ -6747,7 +6749,7 @@ console.log(\`Storage: \${data.total_size_mb} MB / \${data.tier_limit_gb} GB (\$
                     modal.remove();
 
                     // Reload stores list
-                    await loadAllStores();
+                    await loadStoresTab();
 
                 } catch (error) {
                     showNotification(t('notifications.error').replace('{message}', error.message), 'error');
